@@ -74,7 +74,6 @@ export default function DashboardScreen() {
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
-  // venue comparison data
   function getVenueStats() {
     const map: Record<string, { totalTakeHome: number; totalHours: number; shiftCount: number }> = {};
     shifts.forEach((s) => {
@@ -96,12 +95,12 @@ export default function DashboardScreen() {
   const venueStats = getVenueStats();
   const maxHourly = Math.max(...venueStats.map((v) => v.effectiveHourly), 1);
   const recentShifts = shifts.slice(0, 5);
-  const chartWidth = SCREEN_WIDTH - 64;
+  const chartWidth = SCREEN_WIDTH - 96;
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#3b82f6" />
+        <ActivityIndicator color="#f59e0b" />
       </View>
     );
   }
@@ -113,17 +112,15 @@ export default function DashboardScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => { setRefreshing(true); fetchShifts(); }}
-          tintColor="#3b82f6"
+          tintColor="#f59e0b"
         />
       }
     >
-      {/* Hero */}
       <View style={styles.hero}>
         <Text style={styles.heroLabel}>THIS WEEK</Text>
         <Text style={styles.heroAmount}>${getWeeklyTotal().toFixed(2)}</Text>
       </View>
 
-      {/* Stats row */}
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>ALL TIME</Text>
@@ -139,7 +136,6 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Venue comparison */}
       {venueStats.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>VENUE COMPARISON</Text>
@@ -147,28 +143,20 @@ export default function DashboardScreen() {
           <View style={styles.chartCard}>
             {venueStats.map((venue, index) => {
               const barWidth = (venue.effectiveHourly / maxHourly) * chartWidth;
-              const isTop = index === 0;
+              const isTop = index === 0 && venueStats.length > 1;
               return (
                 <View key={venue.name} style={styles.barRow}>
                   <View style={styles.barLabelRow}>
                     <Text style={styles.barVenueName} numberOfLines={1}>
                       {venue.name}
-                      {isTop && venueStats.length > 1 && (
-                        <Text style={styles.topBadge}> BEST</Text>
-                      )}
+                      {isTop && <Text style={styles.topBadge}> BEST</Text>}
                     </Text>
                     <Text style={[styles.barValue, isTop && styles.barValueTop]}>
                       ${venue.effectiveHourly.toFixed(2)}/hr
                     </Text>
                   </View>
                   <View style={styles.barTrack}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        { width: barWidth },
-                        isTop && styles.barFillTop,
-                      ]}
-                    />
+                    <View style={[styles.barFill, { width: barWidth }, isTop && styles.barFillTop]} />
                   </View>
                   <Text style={styles.barMeta}>
                     {venue.shiftCount} shift{venue.shiftCount !== 1 ? 's' : ''} · avg ${venue.avgPerShift.toFixed(0)}/shift
@@ -180,8 +168,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Recent shifts */}
-      <Text style={styles.sectionTitle} stype={{ paddingHorizontal: 24 }}>RECENT SHIFTS</Text>
+      <Text style={[styles.sectionTitle, { paddingHorizontal: 24, marginBottom: 12 }]}>RECENT SHIFTS</Text>
 
       {recentShifts.length === 0 ? (
         <View style={styles.emptyState}>
@@ -211,89 +198,44 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' },
-  hero: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    alignItems: 'center',
-  },
+  hero: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24, alignItems: 'center' },
   heroLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 8 },
-  heroAmount: { fontSize: 56, fontWeight: '700', color: '#fff' },
-  statsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 32,
-  },
+  heroAmount: { fontSize: 56, fontWeight: '700', color: '#f59e0b' },
+  statsRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 10, marginBottom: 32 },
   statBox: {
-    flex: 1,
-    backgroundColor: '#141414',
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
+    flex: 1, backgroundColor: '#111111', borderRadius: 12, padding: 14,
+    alignItems: 'center', borderWidth: 1, borderColor: '#1e1e1e',
   },
   statLabel: { fontSize: 10, color: '#555', letterSpacing: 1.5, marginBottom: 6 },
   statValue: { fontSize: 20, fontWeight: '600', color: '#fff' },
   section: { paddingHorizontal: 16, marginBottom: 32 },
-  sectionTitle: {
-    fontSize: 11,
-    color: '#555',
-    letterSpacing: 1.5,
-    paddingHorizontal: 24,
-    marginBottom: 4,
-  },
+  sectionTitle: { fontSize: 11, color: '#555', letterSpacing: 1.5, marginBottom: 4 },
   sectionSub: { fontSize: 12, color: '#444', marginBottom: 14 },
   chartCard: {
-    backgroundColor: '#141414',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
-    gap: 20,
+    backgroundColor: '#111111', borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: '#1e1e1e', gap: 20,
   },
   barRow: { gap: 6 },
-  barLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  barLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   barVenueName: { fontSize: 13, fontWeight: '600', color: '#fff', flex: 1 },
-  topBadge: { fontSize: 10, color: '#3b82f6', letterSpacing: 1 },
+  topBadge: { fontSize: 10, color: '#f59e0b', letterSpacing: 1 },
   barValue: { fontSize: 13, color: '#aaa', fontWeight: '500' },
-  barValueTop: { color: '#3b82f6', fontWeight: '700' },
-  barTrack: {
-    height: 6,
-    backgroundColor: '#1f1f1f',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: 6,
-    backgroundColor: '#2a3f55',
-    borderRadius: 999,
-  },
-  barFillTop: { backgroundColor: '#3b82f6' },
+  barValueTop: { color: '#f59e0b', fontWeight: '700' },
+  barTrack: { height: 6, backgroundColor: '#1e1e1e', borderRadius: 999, overflow: 'hidden' },
+  barFill: { height: 6, backgroundColor: '#3a2e10', borderRadius: 999 },
+  barFillTop: { backgroundColor: '#f59e0b' },
   barMeta: { fontSize: 11, color: '#555' },
   emptyState: { paddingHorizontal: 24, paddingVertical: 40, alignItems: 'center' },
   emptyText: { color: '#444', fontSize: 15 },
   shiftCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    marginHorizontal: 16,
-    marginBottom: 10,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: '#111111', marginHorizontal: 16, marginBottom: 10,
+    borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#1e1e1e',
   },
   shiftLeft: { flex: 1 },
   shiftVenue: { fontSize: 15, fontWeight: '600', color: '#fff', marginBottom: 2 },
   shiftDate: { fontSize: 12, color: '#666', marginBottom: 2 },
-  shiftHourly: { fontSize: 12, color: '#3b82f6' },
+  shiftHourly: { fontSize: 12, color: '#f59e0b' },
   shiftRight: { alignItems: 'flex-end' },
   shiftAmount: { fontSize: 20, fontWeight: '700', color: '#fff' },
   shiftTipOut: { fontSize: 12, color: '#ef4444', marginTop: 2 },

@@ -23,9 +23,10 @@ type Shift = {
 };
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHART_WIDTH = SCREEN_WIDTH - 64;
+const CHART_WIDTH = SCREEN_WIDTH - 96;
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const VENUE_COLORS = ['#f59e0b', '#22c55e', '#3b82f6', '#ef4444', '#a855f7'];
 
 export default function AnalyticsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -48,7 +49,6 @@ export default function AnalyticsScreen() {
     }, [])
   );
 
-  // earnings by day of week
   function getDayOfWeekData() {
     const totals = Array(7).fill(0);
     const counts = Array(7).fill(0);
@@ -64,7 +64,6 @@ export default function AnalyticsScreen() {
     }));
   }
 
-  // monthly totals for last 6 months
   function getMonthlyData() {
     const now = new Date();
     const months: { label: string; year: number; month: number }[] = [];
@@ -83,7 +82,6 @@ export default function AnalyticsScreen() {
     });
   }
 
-  // venue breakdown
   function getVenueData() {
     const map: Record<string, number> = {};
     shifts.forEach((s) => {
@@ -105,12 +103,10 @@ export default function AnalyticsScreen() {
   const maxDayAvg = Math.max(...dayData.map((d) => d.avg), 1);
   const maxMonthly = Math.max(...monthlyData.map((m) => m.total), 1);
 
-  const VENUE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7'];
-
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#3b82f6" />
+        <ActivityIndicator color="#f59e0b" />
       </View>
     );
   }
@@ -130,7 +126,7 @@ export default function AnalyticsScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => { setRefreshing(true); fetchShifts(); }}
-          tintColor="#3b82f6"
+          tintColor="#f59e0b"
         />
       }
     >
@@ -140,7 +136,7 @@ export default function AnalyticsScreen() {
         <Text style={styles.sectionSub}>Average take-home per day of week</Text>
         <View style={styles.card}>
           <View style={styles.barChart}>
-            {dayData.map((day, i) => {
+            {dayData.map((day) => {
               const barHeight = maxDayAvg > 0 ? (day.avg / maxDayAvg) * 120 : 0;
               const isTop = day.avg === Math.max(...dayData.map((d) => d.avg)) && day.avg > 0;
               return (
@@ -152,7 +148,7 @@ export default function AnalyticsScreen() {
                     <View
                       style={[
                         styles.verticalBar,
-                        { height: barHeight },
+                        { height: Math.max(barHeight, day.avg > 0 ? 4 : 2) },
                         isTop && styles.verticalBarTop,
                         day.avg === 0 && styles.verticalBarEmpty,
                       ]}
@@ -161,9 +157,7 @@ export default function AnalyticsScreen() {
                   <Text style={[styles.barDayLabel, isTop && styles.barDayLabelActive]}>
                     {day.label}
                   </Text>
-                  {day.count > 0 && (
-                    <Text style={styles.barCountLabel}>{day.count}</Text>
-                  )}
+                  {day.count > 0 && <Text style={styles.barCountLabel}>{day.count}</Text>}
                 </View>
               );
             })}
@@ -184,13 +178,7 @@ export default function AnalyticsScreen() {
               <View key={`${month.label}-${i}`} style={styles.hBarRow}>
                 <Text style={styles.hBarLabel}>{month.label}</Text>
                 <View style={styles.hBarTrack}>
-                  <View
-                    style={[
-                      styles.hBarFill,
-                      { width: barWidth },
-                      isTop && styles.hBarFillTop,
-                    ]}
-                  />
+                  <View style={[styles.hBarFill, { width: barWidth }, isTop && styles.hBarFillTop]} />
                 </View>
                 <Text style={[styles.hBarValue, isTop && styles.hBarValueTop]}>
                   {month.total > 0 ? `$${month.total.toFixed(0)}` : '-'}
@@ -244,93 +232,32 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 16, marginTop: 24 },
   sectionTitle: { fontSize: 11, color: '#555', letterSpacing: 1.5, marginBottom: 4 },
   sectionSub: { fontSize: 12, color: '#444', marginBottom: 12 },
-  card: {
-    backgroundColor: '#141414',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
-  },
+  card: { backgroundColor: '#111111', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#1e1e1e' },
   chartNote: { fontSize: 11, color: '#444', marginTop: 10, textAlign: 'center' },
-
-  // vertical bar chart (day of week)
-  barChart: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    height: 160,
-    paddingTop: 16,
-  },
-  barColumn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
+  barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 160, paddingTop: 16 },
+  barColumn: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
   barTopLabel: { fontSize: 9, color: '#555', marginBottom: 4, textAlign: 'center' },
-  barTopLabelActive: { color: '#3b82f6', fontWeight: '700' },
-  barColumnTrack: {
-    width: 24,
-    height: 120,
-    justifyContent: 'flex-end',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  verticalBar: {
-    width: 24,
-    backgroundColor: '#2a3f55',
-    borderRadius: 4,
-  },
-  verticalBarTop: { backgroundColor: '#3b82f6' },
-  verticalBarEmpty: { height: 2, backgroundColor: '#1f1f1f' },
+  barTopLabelActive: { color: '#f59e0b', fontWeight: '700' },
+  barColumnTrack: { width: 24, height: 120, justifyContent: 'flex-end', backgroundColor: '#1a1a1a', borderRadius: 4, overflow: 'hidden' },
+  verticalBar: { width: 24, backgroundColor: '#3a2e10', borderRadius: 4 },
+  verticalBarTop: { backgroundColor: '#f59e0b' },
+  verticalBarEmpty: { height: 2, backgroundColor: '#1e1e1e' },
   barDayLabel: { fontSize: 11, color: '#666', marginTop: 6 },
-  barDayLabelActive: { color: '#3b82f6', fontWeight: '600' },
+  barDayLabelActive: { color: '#f59e0b', fontWeight: '600' },
   barCountLabel: { fontSize: 10, color: '#444', marginTop: 2 },
-
-  // horizontal bar chart (monthly)
-  hBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 10,
-  },
+  hBarRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
   hBarLabel: { fontSize: 12, color: '#888', width: 30 },
-  hBarTrack: {
-    flex: 1,
-    height: 6,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  hBarFill: {
-    height: 6,
-    backgroundColor: '#2a3f55',
-    borderRadius: 999,
-  },
-  hBarFillTop: { backgroundColor: '#3b82f6' },
+  hBarTrack: { flex: 1, height: 6, backgroundColor: '#1a1a1a', borderRadius: 999, overflow: 'hidden' },
+  hBarFill: { height: 6, backgroundColor: '#3a2e10', borderRadius: 999 },
+  hBarFillTop: { backgroundColor: '#f59e0b' },
   hBarValue: { fontSize: 12, color: '#666', width: 50, textAlign: 'right' },
-  hBarValueTop: { color: '#3b82f6', fontWeight: '700' },
-
-  // venue breakdown
+  hBarValueTop: { color: '#f59e0b', fontWeight: '700' },
   venueRow: { marginBottom: 14 },
-  venueLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    gap: 8,
-  },
+  venueLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 },
   venueDot: { width: 8, height: 8, borderRadius: 999 },
   venueName: { flex: 1, fontSize: 13, color: '#fff', fontWeight: '500' },
   venuePercent: { fontSize: 12, color: '#666' },
   venueAmount: { fontSize: 13, color: '#fff', fontWeight: '600', marginLeft: 8 },
-  venueBarTrack: {
-    height: 4,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  venueBarFill: {
-    height: 4,
-    borderRadius: 999,
-  },
+  venueBarTrack: { height: 4, backgroundColor: '#1a1a1a', borderRadius: 999, overflow: 'hidden' },
+  venueBarFill: { height: 4, borderRadius: 999 },
 });

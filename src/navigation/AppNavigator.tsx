@@ -36,7 +36,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 const tabIconStyles = StyleSheet.create({
   container: { alignItems: 'center' },
   icon: { fontSize: 18, color: '#444' },
-  focused: { color: '#3b82f6' },
+  focused: { color: '#f59e0b' },
 });
 
 function MainTabs({ onSignOut }: { onSignOut: () => void }) {
@@ -49,11 +49,11 @@ function MainTabs({ onSignOut }: { onSignOut: () => void }) {
         headerShadowVisible: false,
         tabBarStyle: {
           backgroundColor: '#0a0a0a',
-          borderTopColor: '#1a1a1a',
+          borderTopColor: '#111111',
         },
         tabBarShowLabel: true,
         tabBarLabelStyle: { fontSize: 10, marginBottom: 2 },
-        tabBarActiveTintColor: '#3b82f6',
+        tabBarActiveTintColor: '#f59e0b',
         tabBarInactiveTintColor: '#444',
         tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
         headerRight: () => (

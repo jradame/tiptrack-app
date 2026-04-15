@@ -63,7 +63,7 @@ export default function LoginScreen() {
 
       <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
         {loading ? (
-          <ActivityIndicator color="#000" />
+          <ActivityIndicator color="#0a0a0a" />
         ) : (
           <Text style={styles.buttonText}>{isLogin ? 'Log In' : 'Sign Up'}</Text>
         )}
@@ -86,20 +86,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   logo: {
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: '700',
-    color: '#fff',
+    color: '#f59e0b',
     textAlign: 'center',
     marginBottom: 8,
+    letterSpacing: -1,
   },
   sub: {
     fontSize: 14,
-    color: '#666',
+    color: '#555',
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 48,
   },
   input: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#111111',
     color: '#fff',
     borderRadius: 10,
     paddingHorizontal: 16,
@@ -107,10 +108,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: '#1e1e1e',
   },
   button: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#f59e0b',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
@@ -118,12 +119,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   buttonText: {
-    color: '#fff',
+    color: '#0a0a0a',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   toggle: {
-    color: '#3b82f6',
+    color: '#f59e0b',
     textAlign: 'center',
     fontSize: 14,
   },

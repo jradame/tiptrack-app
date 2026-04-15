@@ -106,7 +106,7 @@ export default function VenuesScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#3b82f6" />
+        <ActivityIndicator color="#f59e0b" />
       </View>
     );
   }
@@ -121,21 +121,18 @@ export default function VenuesScreen() {
               <Text style={styles.deleteText}>Delete</Text>
             </TouchableOpacity>
           </View>
-
           {venue.base_hourly != null && (
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Base hourly</Text>
               <Text style={styles.metaValue}>${venue.base_hourly.toFixed(2)}/hr</Text>
             </View>
           )}
-
           {venue.cc_fee_percent != null && (
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>CC processing fee</Text>
               <Text style={styles.metaValue}>{venue.cc_fee_percent}%</Text>
             </View>
           )}
-
           {venue.tip_out_roles.length === 0 ? (
             <Text style={styles.noRoles}>No tip-out roles</Text>
           ) : (
@@ -156,7 +153,6 @@ export default function VenuesScreen() {
       ) : (
         <View style={styles.form}>
           <Text style={styles.formTitle}>NEW VENUE</Text>
-
           <TextInput
             style={styles.input}
             placeholder="Venue name"
@@ -164,7 +160,6 @@ export default function VenuesScreen() {
             value={venueName}
             onChangeText={setVenueName}
           />
-
           <Text style={styles.fieldLabel}>BASE HOURLY WAGE</Text>
           <Text style={styles.fieldHint}>Your tipped minimum wage at this bar (e.g. $2.13 or $5.00)</Text>
           <TextInput
@@ -175,7 +170,6 @@ export default function VenuesScreen() {
             value={baseHourly}
             onChangeText={setBaseHourly}
           />
-
           <Text style={styles.fieldLabel}>CC PROCESSING FEE %</Text>
           <Text style={styles.fieldHint}>
             Some bars deduct a small fee from credit tips before paying out. Check your pay stub or ask your manager. Most bartenders leave this blank.
@@ -188,7 +182,6 @@ export default function VenuesScreen() {
             value={ccFee}
             onChangeText={setCcFee}
           />
-
           <Text style={styles.rolesLabel}>TIP-OUT ROLES</Text>
           {roles.map((role, i) => (
             <View key={i} style={styles.roleForm}>
@@ -209,9 +202,7 @@ export default function VenuesScreen() {
               />
               <TouchableOpacity
                 style={styles.appliesToggle}
-                onPress={() =>
-                  updateRole(i, 'applies_to', role.applies_to === 'total' ? 'credit' : 'total')
-                }
+                onPress={() => updateRole(i, 'applies_to', role.applies_to === 'total' ? 'credit' : 'total')}
               >
                 <Text style={styles.appliesText}>{role.applies_to}</Text>
               </TouchableOpacity>
@@ -220,11 +211,9 @@ export default function VenuesScreen() {
               </TouchableOpacity>
             </View>
           ))}
-
           <TouchableOpacity style={styles.addRoleBtn} onPress={addRole}>
             <Text style={styles.addRoleText}>+ Add tip-out role</Text>
           </TouchableOpacity>
-
           <View style={styles.formButtons}>
             <TouchableOpacity
               style={styles.cancelBtn}
@@ -233,7 +222,7 @@ export default function VenuesScreen() {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.saveBtn} onPress={saveVenue} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Venue</Text>}
+              {saving ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.saveBtnText}>Save Venue</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -246,12 +235,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a', paddingHorizontal: 16 },
   center: { flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' },
   venueCard: {
-    backgroundColor: '#141414',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
+    backgroundColor: '#111111', borderRadius: 12, padding: 16,
+    marginTop: 14, borderWidth: 1, borderColor: '#1e1e1e',
   },
   venueHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   venueName: { fontSize: 16, fontWeight: '600', color: '#fff' },
@@ -264,70 +249,39 @@ const styles = StyleSheet.create({
   roleText: { color: '#aaa', fontSize: 13 },
   rolePercent: { color: '#666', fontSize: 13 },
   addButton: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 40,
+    marginTop: 20, borderWidth: 1, borderColor: '#1e1e1e', borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center', marginBottom: 40,
   },
-  addButtonText: { color: '#3b82f6', fontSize: 15, fontWeight: '600' },
+  addButtonText: { color: '#f59e0b', fontSize: 15, fontWeight: '600' },
   form: {
-    backgroundColor: '#141414',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
-    marginBottom: 40,
+    backgroundColor: '#111111', borderRadius: 12, padding: 16,
+    marginTop: 14, borderWidth: 1, borderColor: '#1e1e1e', marginBottom: 40,
   },
   formTitle: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 14 },
   fieldLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 16, marginBottom: 4 },
   fieldHint: { fontSize: 12, color: '#444', marginBottom: 8, lineHeight: 18 },
   input: {
-    backgroundColor: '#0a0a0a',
-    color: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    marginBottom: 8,
+    backgroundColor: '#0a0a0a', color: '#fff', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 12, fontSize: 15,
+    borderWidth: 1, borderColor: '#1e1e1e', marginBottom: 8,
   },
   rolesLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 16, marginBottom: 8 },
   roleForm: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   appliesToggle: {
-    backgroundColor: '#1f1f1f',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: '#1a1a1a', borderRadius: 6, paddingHorizontal: 10,
+    paddingVertical: 12, marginRight: 8, borderWidth: 1, borderColor: '#1e1e1e',
   },
   appliesText: { color: '#aaa', fontSize: 12 },
   removeBtn: { padding: 8 },
   removeText: { color: '#ef4444', fontSize: 16, fontWeight: '600' },
   addRoleBtn: { paddingVertical: 10 },
-  addRoleText: { color: '#3b82f6', fontSize: 14 },
+  addRoleText: { color: '#f59e0b', fontSize: 14 },
   formButtons: { flexDirection: 'row', gap: 10, marginTop: 16 },
   cancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    alignItems: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    flex: 1, paddingVertical: 13, alignItems: 'center',
+    borderRadius: 10, borderWidth: 1, borderColor: '#1e1e1e',
   },
   cancelText: { color: '#666', fontSize: 15 },
-  saveBtn: {
-    flex: 2,
-    backgroundColor: '#3b82f6',
-    paddingVertical: 13,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  saveBtn: { flex: 2, backgroundColor: '#f59e0b', paddingVertical: 13, alignItems: 'center', borderRadius: 10 },
+  saveBtnText: { color: '#0a0a0a', fontSize: 15, fontWeight: '700' },
 });

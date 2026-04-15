@@ -95,7 +95,7 @@ export default function HistoryScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#3b82f6" />
+        <ActivityIndicator color="#f59e0b" />
       </View>
     );
   }
@@ -122,7 +122,7 @@ export default function HistoryScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); fetchShifts(); }}
-            tintColor="#3b82f6"
+            tintColor="#f59e0b"
           />
         }
       >
@@ -167,7 +167,7 @@ export default function HistoryScreen() {
                   ))}
                   <View style={styles.expandedRow}>
                     <Text style={styles.expandedLabel}>Effective hourly</Text>
-                    <Text style={[styles.expandedValue, { color: '#3b82f6' }]}>${effectiveHourly(shift)}/hr</Text>
+                    <Text style={[styles.expandedValue, { color: '#f59e0b' }]}>${effectiveHourly(shift)}/hr</Text>
                   </View>
                   <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteShift(shift.id)}>
                     <Text style={styles.deleteBtnText}>Delete shift</Text>
@@ -186,36 +186,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' },
   filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16,
+    paddingVertical: 14, gap: 8, borderBottomWidth: 1, borderBottomColor: '#111111',
   },
   filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#111111', borderWidth: 1, borderColor: '#1e1e1e',
   },
-  filterChipActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  filterChipActive: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
   filterText: { color: '#666', fontSize: 11, letterSpacing: 1 },
-  filterTextActive: { color: '#fff', fontWeight: '600' },
+  filterTextActive: { color: '#0a0a0a', fontWeight: '700' },
   filterTotal: { marginLeft: 'auto', color: '#fff', fontWeight: '700', fontSize: 16 },
   emptyState: { padding: 40, alignItems: 'center' },
   emptyText: { color: '#444', fontSize: 15 },
   shiftCard: {
-    backgroundColor: '#141414',
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
+    backgroundColor: '#111111', marginHorizontal: 16, marginTop: 10,
+    borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#1e1e1e',
   },
   shiftRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftLeft: { flex: 1 },
@@ -224,27 +210,13 @@ const styles = StyleSheet.create({
   shiftRight: { alignItems: 'flex-end' },
   shiftAmount: { fontSize: 20, fontWeight: '700', color: '#fff' },
   shiftHours: { fontSize: 12, color: '#666', marginTop: 2 },
-  expanded: {
-    marginTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
-    paddingTop: 14,
-  },
-  expandedRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
+  expanded: { marginTop: 14, borderTopWidth: 1, borderTopColor: '#1e1e1e', paddingTop: 14 },
+  expandedRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   expandedLabel: { color: '#888', fontSize: 13 },
   expandedValue: { color: '#fff', fontSize: 13, fontWeight: '500' },
   deleteBtn: {
-    marginTop: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#1f1010',
-    borderWidth: 1,
-    borderColor: '#3f1010',
+    marginTop: 12, paddingVertical: 10, alignItems: 'center',
+    borderRadius: 8, backgroundColor: '#1f1010', borderWidth: 1, borderColor: '#3f1010',
   },
   deleteBtnText: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
 });

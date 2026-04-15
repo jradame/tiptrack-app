@@ -196,32 +196,28 @@ export default function LogShiftScreen() {
       {(tipOuts.length > 0 || hasCcFee || hasWage) && (
         <View style={styles.breakdown}>
           <Text style={styles.breakdownTitle}>BREAKDOWN</Text>
-
           {hasWage && (
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>Base wage ({selectedVenue?.base_hourly?.toFixed(2)}/hr x {hours}hr)</Text>
               <Text style={styles.breakdownGreen}>+${wageEarnings.toFixed(2)}</Text>
             </View>
           )}
-
           {hasCcFee && (
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>CC processing fee ({selectedVenue?.cc_fee_percent}%)</Text>
-              <Text style={styles.breakdownAmountRed}>-${ccFee.toFixed(2)}</Text>
+              <Text style={styles.breakdownRed}>-${ccFee.toFixed(2)}</Text>
             </View>
           )}
-
           {tipOuts.map((t) => (
             <View key={t.role} style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>{t.role} tip out</Text>
-              <Text style={styles.breakdownAmountRed}>-${t.amount.toFixed(2)}</Text>
+              <Text style={styles.breakdownRed}>-${t.amount.toFixed(2)}</Text>
             </View>
           ))}
-
           {tipOuts.length > 0 && (
             <View style={[styles.breakdownRow, styles.breakdownTotal]}>
               <Text style={styles.breakdownLabel}>Total tip out</Text>
-              <Text style={styles.breakdownAmountRed}>-${totalTipOut().toFixed(2)}</Text>
+              <Text style={styles.breakdownRed}>-${totalTipOut().toFixed(2)}</Text>
             </View>
           )}
         </View>
@@ -233,7 +229,7 @@ export default function LogShiftScreen() {
       </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Log Shift</Text>}
+        {saving ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.saveButtonText}>Log Shift</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -241,88 +237,38 @@ export default function LogShiftScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a', paddingHorizontal: 20 },
-  sectionLabel: {
-    fontSize: 11,
-    color: '#555',
-    letterSpacing: 2,
-    marginTop: 24,
-    marginBottom: 6,
-  },
+  sectionLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 24, marginBottom: 6 },
   fieldHint: { fontSize: 12, color: '#444', marginBottom: 8, lineHeight: 18 },
   venueRow: { flexDirection: 'row', marginBottom: 4 },
   venueChip: {
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    backgroundColor: '#141414',
+    borderWidth: 1, borderColor: '#1e1e1e', borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, backgroundColor: '#111111',
   },
-  venueChipActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  venueChipActive: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
   venueChipText: { color: '#666', fontSize: 14 },
-  venueChipTextActive: { color: '#fff', fontWeight: '600' },
+  venueChipTextActive: { color: '#0a0a0a', fontWeight: '700' },
   noVenue: { color: '#555', fontSize: 13, paddingVertical: 8 },
   input: {
-    backgroundColor: '#141414',
-    color: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: '#111111', color: '#fff', borderRadius: 10,
+    paddingHorizontal: 16, paddingVertical: 14, fontSize: 16,
+    borderWidth: 1, borderColor: '#1e1e1e',
   },
   breakdown: {
-    backgroundColor: '#141414',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 24,
-    borderWidth: 1,
-    borderColor: '#1f1f1f',
+    backgroundColor: '#111111', borderRadius: 12, padding: 16,
+    marginTop: 24, borderWidth: 1, borderColor: '#1e1e1e',
   },
-  breakdownTitle: {
-    fontSize: 11,
-    color: '#555',
-    letterSpacing: 2,
-    marginBottom: 12,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  breakdownTotal: {
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
-    paddingTop: 10,
-    marginTop: 4,
-  },
+  breakdownTitle: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 12 },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  breakdownTotal: { borderTopWidth: 1, borderTopColor: '#1e1e1e', paddingTop: 10, marginTop: 4 },
   breakdownLabel: { color: '#aaa', fontSize: 13, flex: 1, paddingRight: 8 },
   breakdownGreen: { color: '#22c55e', fontSize: 13, fontWeight: '600' },
-  breakdownAmountRed: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
-  takeHomeBox: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    marginTop: 16,
-  },
-  takeHomeLabel: {
-    fontSize: 11,
-    color: '#555',
-    letterSpacing: 2,
-    marginBottom: 10,
-  },
-  takeHomeAmount: {
-    fontSize: 52,
-    fontWeight: '700',
-    color: '#fff',
-  },
+  breakdownRed: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
+  takeHomeBox: { alignItems: 'center', paddingVertical: 32, marginTop: 16 },
+  takeHomeLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 10 },
+  takeHomeAmount: { fontSize: 52, fontWeight: '700', color: '#f59e0b' },
   saveButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 48,
+    backgroundColor: '#f59e0b', borderRadius: 12, paddingVertical: 16,
+    alignItems: 'center', marginBottom: 48,
   },
-  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  saveButtonText: { color: '#0a0a0a', fontSize: 16, fontWeight: '700' },
 });
