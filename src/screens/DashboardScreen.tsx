@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
@@ -22,6 +23,8 @@ type Shift = {
   total_tip_out: number;
 };
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
 export default function DashboardScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +35,7 @@ export default function DashboardScreen() {
       .from('shifts')
       .select('*')
       .order('shift_date', { ascending: false })
-      .limit(50);
+      .limit(100);
     if (!error && data) setShifts(data);
     setLoading(false);
     setRefreshing(false);
@@ -45,11 +48,10 @@ export default function DashboardScreen() {
   );
 
   function getWeeklyTotal() {
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(now.getDate() - 7);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
     return shifts
-      .filter((s) => new Date(s.shift_date) >= weekAgo)
+      .filter((s) => new Date(s.shift_date) >= cutoff)
       .reduce((sum, s) => sum + s.take_home, 0);
   }
 
@@ -72,7 +74,29 @@ export default function DashboardScreen() {
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
+  // venue comparison data
+  function getVenueStats() {
+    const map: Record<string, { totalTakeHome: number; totalHours: number; shiftCount: number }> = {};
+    shifts.forEach((s) => {
+      if (!map[s.venue_name]) map[s.venue_name] = { totalTakeHome: 0, totalHours: 0, shiftCount: 0 };
+      map[s.venue_name].totalTakeHome += s.take_home;
+      map[s.venue_name].totalHours += s.hours;
+      map[s.venue_name].shiftCount += 1;
+    });
+    return Object.entries(map)
+      .map(([name, stats]) => ({
+        name,
+        effectiveHourly: stats.totalHours > 0 ? stats.totalTakeHome / stats.totalHours : 0,
+        avgPerShift: stats.shiftCount > 0 ? stats.totalTakeHome / stats.shiftCount : 0,
+        shiftCount: stats.shiftCount,
+      }))
+      .sort((a, b) => b.effectiveHourly - a.effectiveHourly);
+  }
+
+  const venueStats = getVenueStats();
+  const maxHourly = Math.max(...venueStats.map((v) => v.effectiveHourly), 1);
   const recentShifts = shifts.slice(0, 5);
+  const chartWidth = SCREEN_WIDTH - 64;
 
   if (loading) {
     return (
@@ -85,13 +109,21 @@ export default function DashboardScreen() {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchShifts(); }} tintColor="#3b82f6" />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); fetchShifts(); }}
+          tintColor="#3b82f6"
+        />
+      }
     >
+      {/* Hero */}
       <View style={styles.hero}>
         <Text style={styles.heroLabel}>THIS WEEK</Text>
         <Text style={styles.heroAmount}>${getWeeklyTotal().toFixed(2)}</Text>
       </View>
 
+      {/* Stats row */}
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>ALL TIME</Text>
@@ -107,7 +139,49 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Recent Shifts</Text>
+      {/* Venue comparison */}
+      {venueStats.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>VENUE COMPARISON</Text>
+          <Text style={styles.sectionSub}>Effective hourly rate across all venues</Text>
+          <View style={styles.chartCard}>
+            {venueStats.map((venue, index) => {
+              const barWidth = (venue.effectiveHourly / maxHourly) * chartWidth;
+              const isTop = index === 0;
+              return (
+                <View key={venue.name} style={styles.barRow}>
+                  <View style={styles.barLabelRow}>
+                    <Text style={styles.barVenueName} numberOfLines={1}>
+                      {venue.name}
+                      {isTop && venueStats.length > 1 && (
+                        <Text style={styles.topBadge}> BEST</Text>
+                      )}
+                    </Text>
+                    <Text style={[styles.barValue, isTop && styles.barValueTop]}>
+                      ${venue.effectiveHourly.toFixed(2)}/hr
+                    </Text>
+                  </View>
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        { width: barWidth },
+                        isTop && styles.barFillTop,
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.barMeta}>
+                    {venue.shiftCount} shift{venue.shiftCount !== 1 ? 's' : ''} · avg ${venue.avgPerShift.toFixed(0)}/shift
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Recent shifts */}
+      <Text style={styles.sectionTitle} stype={{ paddingHorizontal: 24 }}>RECENT SHIFTS</Text>
 
       {recentShifts.length === 0 ? (
         <View style={styles.emptyState}>
@@ -118,7 +192,7 @@ export default function DashboardScreen() {
           <View key={shift.id} style={styles.shiftCard}>
             <View style={styles.shiftLeft}>
               <Text style={styles.shiftVenue}>{shift.venue_name}</Text>
-              <Text style={styles.shiftDate}>{formatDate(shift.shift_date)} - {shift.hours}hr</Text>
+              <Text style={styles.shiftDate}>{formatDate(shift.shift_date)} · {shift.hours}hr</Text>
               <Text style={styles.shiftHourly}>${getEffectiveHourly(shift).toFixed(2)}/hr effective</Text>
             </View>
             <View style={styles.shiftRight}>
@@ -128,6 +202,8 @@ export default function DashboardScreen() {
           </View>
         ))
       )}
+
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
@@ -141,17 +217,8 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     alignItems: 'center',
   },
-  heroLabel: {
-    fontSize: 11,
-    color: '#555',
-    letterSpacing: 2,
-    marginBottom: 8,
-  },
-  heroAmount: {
-    fontSize: 56,
-    fontWeight: '700',
-    color: '#fff',
-  },
+  heroLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 8 },
+  heroAmount: { fontSize: 56, fontWeight: '700', color: '#fff' },
   statsRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -167,33 +234,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1f1f1f',
   },
-  statLabel: {
-    fontSize: 10,
-    color: '#555',
-    letterSpacing: 1.5,
-    marginBottom: 6,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-  },
+  statLabel: { fontSize: 10, color: '#555', letterSpacing: 1.5, marginBottom: 6 },
+  statValue: { fontSize: 20, fontWeight: '600', color: '#fff' },
+  section: { paddingHorizontal: 16, marginBottom: 32 },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#555',
     letterSpacing: 1.5,
     paddingHorizontal: 24,
-    marginBottom: 12,
+    marginBottom: 4,
   },
-  emptyState: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+  sectionSub: { fontSize: 12, color: '#444', marginBottom: 14 },
+  chartCard: {
+    backgroundColor: '#141414',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#1f1f1f',
+    gap: 20,
+  },
+  barRow: { gap: 6 },
+  barLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  emptyText: {
-    color: '#444',
-    fontSize: 15,
+  barVenueName: { fontSize: 13, fontWeight: '600', color: '#fff', flex: 1 },
+  topBadge: { fontSize: 10, color: '#3b82f6', letterSpacing: 1 },
+  barValue: { fontSize: 13, color: '#aaa', fontWeight: '500' },
+  barValueTop: { color: '#3b82f6', fontWeight: '700' },
+  barTrack: {
+    height: 6,
+    backgroundColor: '#1f1f1f',
+    borderRadius: 999,
+    overflow: 'hidden',
   },
+  barFill: {
+    height: 6,
+    backgroundColor: '#2a3f55',
+    borderRadius: 999,
+  },
+  barFillTop: { backgroundColor: '#3b82f6' },
+  barMeta: { fontSize: 11, color: '#555' },
+  emptyState: { paddingHorizontal: 24, paddingVertical: 40, alignItems: 'center' },
+  emptyText: { color: '#444', fontSize: 15 },
   shiftCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
