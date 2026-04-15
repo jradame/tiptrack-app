@@ -9,8 +9,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from '../lib/supabase';
 
 type TipOutRole = {
   name: string;
@@ -22,6 +22,8 @@ type Venue = {
   id: string;
   name: string;
   tip_out_roles: TipOutRole[];
+  base_hourly: number | null;
+  cc_fee_percent: number | null;
 };
 
 export default function LogShiftScreen() {
@@ -47,7 +49,7 @@ export default function LogShiftScreen() {
     const { data } = await supabase.from('venues').select('*').order('name');
     if (data) {
       setVenues(data);
-      if (data.length > 0) setSelectedVenue(data[0]);
+      if (data.length > 0 && !selectedVenue) setSelectedVenue(data[0]);
     }
   }
 
@@ -62,16 +64,29 @@ export default function LogShiftScreen() {
     });
   }
 
-  function calcTakeHome() {
-    const cash = parseFloat(cashTips) || 0;
+  function calcCcFee() {
+    if (!selectedVenue?.cc_fee_percent) return 0;
     const credit = parseFloat(creditTips) || 0;
-    const total = cash + credit;
-    const totalTipOut = calcTipOuts().reduce((sum, t) => sum + t.amount, 0);
-    return total - totalTipOut;
+    return parseFloat(((credit * selectedVenue.cc_fee_percent) / 100).toFixed(2));
+  }
+
+  function calcWageEarnings() {
+    if (!selectedVenue?.base_hourly) return 0;
+    const hrs = parseFloat(hours) || 0;
+    return parseFloat((hrs * selectedVenue.base_hourly).toFixed(2));
   }
 
   function totalTipOut() {
     return calcTipOuts().reduce((sum, t) => sum + t.amount, 0);
+  }
+
+  function calcTakeHome() {
+    const cash = parseFloat(cashTips) || 0;
+    const credit = parseFloat(creditTips) || 0;
+    const ccFee = calcCcFee();
+    const tipOut = totalTipOut();
+    const wage = calcWageEarnings();
+    return cash + (credit - ccFee) - tipOut + wage;
   }
 
   async function handleSave() {
@@ -112,6 +127,10 @@ export default function LogShiftScreen() {
 
   const takeHome = calcTakeHome();
   const tipOuts = calcTipOuts();
+  const ccFee = calcCcFee();
+  const wageEarnings = calcWageEarnings();
+  const hasCcFee = ccFee > 0;
+  const hasWage = wageEarnings > 0;
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
@@ -153,6 +172,7 @@ export default function LogShiftScreen() {
       />
 
       <Text style={styles.sectionLabel}>CASH TIPS</Text>
+      <Text style={styles.fieldHint}>What you walked out with tonight.</Text>
       <TextInput
         style={styles.input}
         value={cashTips}
@@ -163,28 +183,47 @@ export default function LogShiftScreen() {
       />
 
       <Text style={styles.sectionLabel}>CREDIT TIPS</Text>
+      <Text style={styles.fieldHint}>Only if your bar pays credit tips the same night. Most don't -- leave blank.</Text>
       <TextInput
         style={styles.input}
         value={creditTips}
         onChangeText={setCreditTips}
         keyboardType="decimal-pad"
-        placeholder="$0.00"
+        placeholder="$0.00 (optional)"
         placeholderTextColor="#555"
       />
 
-      {tipOuts.length > 0 && (
+      {(tipOuts.length > 0 || hasCcFee || hasWage) && (
         <View style={styles.breakdown}>
-          <Text style={styles.breakdownTitle}>TIP-OUT BREAKDOWN</Text>
+          <Text style={styles.breakdownTitle}>BREAKDOWN</Text>
+
+          {hasWage && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Base wage ({selectedVenue?.base_hourly?.toFixed(2)}/hr x {hours}hr)</Text>
+              <Text style={styles.breakdownGreen}>+${wageEarnings.toFixed(2)}</Text>
+            </View>
+          )}
+
+          {hasCcFee && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>CC processing fee ({selectedVenue?.cc_fee_percent}%)</Text>
+              <Text style={styles.breakdownAmountRed}>-${ccFee.toFixed(2)}</Text>
+            </View>
+          )}
+
           {tipOuts.map((t) => (
             <View key={t.role} style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>{t.role}</Text>
-              <Text style={styles.breakdownAmount}>-${t.amount.toFixed(2)}</Text>
+              <Text style={styles.breakdownLabel}>{t.role} tip out</Text>
+              <Text style={styles.breakdownAmountRed}>-${t.amount.toFixed(2)}</Text>
             </View>
           ))}
-          <View style={[styles.breakdownRow, styles.breakdownTotal]}>
-            <Text style={styles.breakdownLabel}>Total tip out</Text>
-            <Text style={styles.breakdownAmountRed}>-${totalTipOut().toFixed(2)}</Text>
-          </View>
+
+          {tipOuts.length > 0 && (
+            <View style={[styles.breakdownRow, styles.breakdownTotal]}>
+              <Text style={styles.breakdownLabel}>Total tip out</Text>
+              <Text style={styles.breakdownAmountRed}>-${totalTipOut().toFixed(2)}</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -207,8 +246,9 @@ const styles = StyleSheet.create({
     color: '#555',
     letterSpacing: 2,
     marginTop: 24,
-    marginBottom: 8,
+    marginBottom: 6,
   },
+  fieldHint: { fontSize: 12, color: '#444', marginBottom: 8, lineHeight: 18 },
   venueRow: { flexDirection: 'row', marginBottom: 4 },
   venueChip: {
     borderWidth: 1,
@@ -258,9 +298,9 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     marginTop: 4,
   },
-  breakdownLabel: { color: '#aaa', fontSize: 14 },
-  breakdownAmount: { color: '#aaa', fontSize: 14 },
-  breakdownAmountRed: { color: '#ef4444', fontSize: 14, fontWeight: '600' },
+  breakdownLabel: { color: '#aaa', fontSize: 13, flex: 1, paddingRight: 8 },
+  breakdownGreen: { color: '#22c55e', fontSize: 13, fontWeight: '600' },
+  breakdownAmountRed: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
   takeHomeBox: {
     alignItems: 'center',
     paddingVertical: 32,

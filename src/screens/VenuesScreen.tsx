@@ -22,6 +22,8 @@ type Venue = {
   id: string;
   name: string;
   tip_out_roles: TipOutRole[];
+  base_hourly: number | null;
+  cc_fee_percent: number | null;
 };
 
 export default function VenuesScreen() {
@@ -29,6 +31,8 @@ export default function VenuesScreen() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [venueName, setVenueName] = useState('');
+  const [baseHourly, setBaseHourly] = useState('');
+  const [ccFee, setCcFee] = useState('');
   const [roles, setRoles] = useState<TipOutRole[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -69,12 +73,16 @@ export default function VenuesScreen() {
       user_id: user?.id,
       name: venueName.trim(),
       tip_out_roles: roles,
+      base_hourly: baseHourly ? parseFloat(baseHourly) : null,
+      cc_fee_percent: ccFee ? parseFloat(ccFee) : null,
     });
     setSaving(false);
     if (error) {
       Alert.alert('Error', error.message);
     } else {
       setVenueName('');
+      setBaseHourly('');
+      setCcFee('');
       setRoles([]);
       setShowForm(false);
       fetchVenues();
@@ -113,6 +121,21 @@ export default function VenuesScreen() {
               <Text style={styles.deleteText}>Delete</Text>
             </TouchableOpacity>
           </View>
+
+          {venue.base_hourly != null && (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Base hourly</Text>
+              <Text style={styles.metaValue}>${venue.base_hourly.toFixed(2)}/hr</Text>
+            </View>
+          )}
+
+          {venue.cc_fee_percent != null && (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>CC processing fee</Text>
+              <Text style={styles.metaValue}>{venue.cc_fee_percent}%</Text>
+            </View>
+          )}
+
           {venue.tip_out_roles.length === 0 ? (
             <Text style={styles.noRoles}>No tip-out roles</Text>
           ) : (
@@ -133,12 +156,37 @@ export default function VenuesScreen() {
       ) : (
         <View style={styles.form}>
           <Text style={styles.formTitle}>NEW VENUE</Text>
+
           <TextInput
             style={styles.input}
             placeholder="Venue name"
             placeholderTextColor="#555"
             value={venueName}
             onChangeText={setVenueName}
+          />
+
+          <Text style={styles.fieldLabel}>BASE HOURLY WAGE</Text>
+          <Text style={styles.fieldHint}>Your tipped minimum wage at this bar (e.g. $2.13 or $5.00)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="$0.00 (optional)"
+            placeholderTextColor="#555"
+            keyboardType="decimal-pad"
+            value={baseHourly}
+            onChangeText={setBaseHourly}
+          />
+
+          <Text style={styles.fieldLabel}>CC PROCESSING FEE %</Text>
+          <Text style={styles.fieldHint}>
+            Some bars deduct a small fee from credit tips before paying out. Check your pay stub or ask your manager. Most bartenders leave this blank.
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. 2.5 (optional)"
+            placeholderTextColor="#555"
+            keyboardType="decimal-pad"
+            value={ccFee}
+            onChangeText={setCcFee}
           />
 
           <Text style={styles.rolesLabel}>TIP-OUT ROLES</Text>
@@ -180,7 +228,7 @@ export default function VenuesScreen() {
           <View style={styles.formButtons}>
             <TouchableOpacity
               style={styles.cancelBtn}
-              onPress={() => { setShowForm(false); setVenueName(''); setRoles([]); }}
+              onPress={() => { setShowForm(false); setVenueName(''); setBaseHourly(''); setCcFee(''); setRoles([]); }}
             >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -208,6 +256,9 @@ const styles = StyleSheet.create({
   venueHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   venueName: { fontSize: 16, fontWeight: '600', color: '#fff' },
   deleteText: { color: '#ef4444', fontSize: 13 },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  metaLabel: { color: '#666', fontSize: 13 },
+  metaValue: { color: '#aaa', fontSize: 13 },
   noRoles: { color: '#555', fontSize: 13 },
   roleRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   roleText: { color: '#aaa', fontSize: 13 },
@@ -219,6 +270,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
+    marginBottom: 40,
   },
   addButtonText: { color: '#3b82f6', fontSize: 15, fontWeight: '600' },
   form: {
@@ -231,6 +283,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   formTitle: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 14 },
+  fieldLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 16, marginBottom: 4 },
+  fieldHint: { fontSize: 12, color: '#444', marginBottom: 8, lineHeight: 18 },
   input: {
     backgroundColor: '#0a0a0a',
     color: '#fff',
@@ -242,7 +296,7 @@ const styles = StyleSheet.create({
     borderColor: '#2a2a2a',
     marginBottom: 8,
   },
-  rolesLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 12, marginBottom: 8 },
+  rolesLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 16, marginBottom: 8 },
   roleForm: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   appliesToggle: {
     backgroundColor: '#1f1f1f',
