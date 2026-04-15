@@ -10,6 +10,7 @@ import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import LogShiftScreen from '../screens/LogShiftScreen';
 import HistoryScreen from '../screens/HistoryScreen';
+import AnalyticsScreen from '../screens/AnalyticsScreen';
 import VenuesScreen from '../screens/VenuesScreen';
 
 const Stack = createNativeStackNavigator();
@@ -20,6 +21,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Dashboard: '◉',
     Log: '+',
     History: '≡',
+    Analytics: '▲',
     Venues: '⌂',
   };
   return (
@@ -33,7 +35,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 
 const tabIconStyles = StyleSheet.create({
   container: { alignItems: 'center' },
-  icon: { fontSize: 20, color: '#444' },
+  icon: { fontSize: 18, color: '#444' },
   focused: { color: '#3b82f6' },
 });
 
@@ -64,6 +66,7 @@ function MainTabs({ onSignOut }: { onSignOut: () => void }) {
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Log" component={LogShiftScreen} options={{ title: 'Log Shift' }} />
       <Tab.Screen name="History" component={HistoryScreen} />
+      <Tab.Screen name="Analytics" component={AnalyticsScreen} />
       <Tab.Screen name="Venues" component={VenuesScreen} />
     </Tab.Navigator>
   );
