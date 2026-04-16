@@ -7,6 +7,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 import LoginScreen from '../screens/LoginScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import LogShiftScreen from '../screens/LogShiftScreen';
 import HistoryScreen from '../screens/HistoryScreen';
@@ -75,33 +76,60 @@ function MainTabs({ onSignOut }: { onSignOut: () => void }) {
 export default function AppNavigator() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setReady(true);
+      if (session) {
+        checkOnboarding();
+      } else {
+        setReady(true);
+      }
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        checkOnboarding();
+      } else {
+        setNeedsOnboarding(false);
+        setReady(true);
+      }
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
-  if (!ready) return null;
+  async function checkOnboarding() {
+    const { data } = await supabase.from('venues').select('id').limit(1);
+    setNeedsOnboarding(!data || data.length === 0);
+    setReady(true);
+  }
+
+  function handleOnboardingComplete() {
+    setNeedsOnboarding(false);
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
 
+  if (!ready) return null;
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {session ? (
+        {!session ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : needsOnboarding ? (
+          <Stack.Screen name="Onboarding">
+            {() => <OnboardingScreen onComplete={handleOnboardingComplete} />}
+          </Stack.Screen>
+        ) : (
           <Stack.Screen name="Main">
             {() => <MainTabs onSignOut={handleSignOut} />}
           </Stack.Screen>
-        ) : (
-          <Stack.Screen name="Login" component={LoginScreen} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
