@@ -12,6 +12,8 @@ import {
   Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { supabase } from '../lib/supabase';
 
 type TipOutRole = {
@@ -51,6 +53,7 @@ export default function HistoryScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [editShift, setEditShift] = useState<Shift | null>(null);
   const [editVenue, setEditVenue] = useState<Venue | null>(null);
@@ -76,6 +79,62 @@ export default function HistoryScreen() {
       fetchData();
     }, [])
   );
+
+  async function exportCSV() {
+    if (shifts.length === 0) {
+      Alert.alert('No shifts', 'Log some shifts before exporting.');
+      return;
+    }
+    setExporting(true);
+    try {
+      const headers = [
+        'Date',
+        'Venue',
+        'Hours',
+        'Cash Tips',
+        'Credit Tips',
+        'Total Tip Out',
+        'Take Home',
+        'Effective Hourly',
+      ];
+
+      const rows = shifts.map((s) => {
+        const effectiveHourly = s.hours > 0 ? (s.take_home / s.hours).toFixed(2) : '0.00';
+        return [
+          s.shift_date,
+          `"${s.venue_name}"`,
+          s.hours,
+          s.cash_tips.toFixed(2),
+          s.credit_tips.toFixed(2),
+          s.total_tip_out.toFixed(2),
+          s.take_home.toFixed(2),
+          effectiveHourly,
+        ].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const filename = `TipTrack_${new Date().toISOString().split('T')[0]}.csv`;
+      const fileUri = FileSystem.documentDirectory + filename;
+
+      await FileSystem.writeAsStringAsync(fileUri, csv, {
+        encoding: 'utf8' as any,
+      });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export TipTrack Data',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        Alert.alert('Exported', `Saved to ${fileUri}`);
+      }
+    } catch (e) {
+      Alert.alert('Export failed', String(e));
+    }
+    setExporting(false);
+  }
 
   function filterShifts() {
     const now = new Date();
@@ -218,6 +277,13 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         ))}
         <Text style={styles.filterTotal}>${total.toFixed(2)}</Text>
+        <TouchableOpacity style={styles.exportBtn} onPress={exportCSV} disabled={exporting}>
+          {exporting ? (
+            <ActivityIndicator color="#f59e0b" size="small" />
+          ) : (
+            <Text style={styles.exportBtnText}>CSV</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -288,7 +354,6 @@ export default function HistoryScreen() {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* Edit modal */}
       <Modal
         visible={editShift !== null}
         animationType="slide"
@@ -311,7 +376,6 @@ export default function HistoryScreen() {
           </View>
 
           <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
-
             <Text style={styles.editLabel}>VENUE</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.venueRow}>
               {venues.map((v) => (
@@ -394,6 +458,11 @@ const styles = StyleSheet.create({
   filterText: { color: '#666', fontSize: 11, letterSpacing: 1 },
   filterTextActive: { color: '#0a0a0a', fontWeight: '700' },
   filterTotal: { marginLeft: 'auto', color: '#fff', fontWeight: '700', fontSize: 16 },
+  exportBtn: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    borderWidth: 1, borderColor: '#3a2e10', backgroundColor: '#1a1a0a',
+  },
+  exportBtnText: { color: '#f59e0b', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   emptyState: { padding: 40, alignItems: 'center' },
   emptyText: { color: '#444', fontSize: 15 },
   shiftCard: {
@@ -450,4 +519,3 @@ const styles = StyleSheet.create({
   editTakeHomeLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 10 },
   editTakeHomeAmount: { fontSize: 48, fontWeight: '700', color: '#f59e0b' },
 });
-
