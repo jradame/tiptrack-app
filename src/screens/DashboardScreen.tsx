@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
@@ -29,6 +30,7 @@ export default function DashboardScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function fetchShifts() {
     const { data, error } = await supabase
@@ -46,6 +48,53 @@ export default function DashboardScreen() {
       fetchShifts();
     }, [])
   );
+
+  async function handleDeleteAccount() {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your shift data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete My Account',
+          style: 'destructive',
+          onPress: async () => {
+            Alert.alert(
+              'Are you sure?',
+              'All your shifts, venues, and account data will be permanently deleted.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Delete Everything',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setDeleting(true);
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+
+                    // Delete all user data
+                    await supabase.from('shifts').delete().eq('user_id', user.id);
+                    await supabase.from('venues').delete().eq('user_id', user.id);
+
+                    // Delete auth account via edge function
+                    const { error } = await supabase.functions.invoke('delete-user');
+
+                    setDeleting(false);
+                    if (error) {
+                      // Sign out anyway even if function fails
+                      await supabase.auth.signOut();
+                    } else {
+                      await supabase.auth.signOut();
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }
 
   function getWeeklyTotal() {
     const cutoff = new Date();
@@ -190,6 +239,22 @@ export default function DashboardScreen() {
         ))
       )}
 
+      {/* Delete Account */}
+      <View style={styles.dangerZone}>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#ef4444" />
+          ) : (
+            <Text style={styles.deleteButtonText}>Delete Account</Text>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.deleteHint}>Permanently deletes your account and all shift data.</Text>
+      </View>
+
       <View style={{ height: 32 }} />
     </ScrollView>
   );
@@ -239,4 +304,15 @@ const styles = StyleSheet.create({
   shiftRight: { alignItems: 'flex-end' },
   shiftAmount: { fontSize: 20, fontWeight: '700', color: '#fff' },
   shiftTipOut: { fontSize: 12, color: '#ef4444', marginTop: 2 },
+  dangerZone: {
+    marginHorizontal: 16, marginTop: 40, paddingTop: 24,
+    borderTopWidth: 1, borderTopColor: '#1e1e1e', alignItems: 'center',
+  },
+  deleteButton: {
+    paddingVertical: 12, paddingHorizontal: 24,
+    borderWidth: 1, borderColor: '#ef4444', borderRadius: 10,
+    marginBottom: 8,
+  },
+  deleteButtonText: { color: '#ef4444', fontSize: 14, fontWeight: '600' },
+  deleteHint: { fontSize: 12, color: '#444', textAlign: 'center' },
 });
