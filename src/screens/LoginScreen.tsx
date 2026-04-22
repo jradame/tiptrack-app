@@ -18,6 +18,7 @@ export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   async function handleAuth() {
     if (!email || !password) {
@@ -34,6 +35,22 @@ export default function LoginScreen() {
       else Alert.alert('Check your email', 'Confirm your account then log in.');
     }
     setLoading(false);
+  }
+
+  async function handleForgotPassword() {
+    if (!email) {
+      Alert.alert('Enter your email', 'Type your email above then tap Forgot Password.');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    setLoading(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      setResetSent(true);
+      Alert.alert('Email sent', 'Check your inbox for a password reset link.');
+    }
   }
 
   return (
@@ -70,6 +87,14 @@ export default function LoginScreen() {
           <Text style={styles.eyeIcon}>{showPassword ? 'Hide' : 'Show'}</Text>
         </TouchableOpacity>
       </View>
+
+      {isLogin && (
+        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotRow}>
+          <Text style={styles.forgotText}>
+            {resetSent ? 'Reset email sent' : 'Forgot password?'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
         {loading ? (
@@ -127,7 +152,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#1e1e1e',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   passwordInput: {
     flex: 1,
@@ -145,12 +170,20 @@ const styles = StyleSheet.create({
     color: '#555',
     fontWeight: '600',
   },
+  forgotRow: {
+    alignItems: 'flex-end',
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  forgotText: {
+    color: '#555',
+    fontSize: 13,
+  },
   button: {
     backgroundColor: '#f59e0b',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 8,
     marginBottom: 16,
   },
   buttonText: {
