@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Switch,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
@@ -25,6 +26,7 @@ type Venue = {
   tip_out_roles: TipOutRole[];
   base_hourly: number | null;
   cc_fee_percent: number | null;
+  track_sales: boolean | null;
 };
 
 export default function VenuesScreen() {
@@ -36,14 +38,14 @@ export default function VenuesScreen() {
   // add form
   const [venueName, setVenueName] = useState('');
   const [baseHourly, setBaseHourly] = useState('');
-  const [ccFee, setCcFee] = useState('');
+  const [trackSales, setTrackSales] = useState(false);
   const [roles, setRoles] = useState<TipOutRole[]>([]);
 
   // edit modal
   const [editVenue, setEditVenue] = useState<Venue | null>(null);
   const [editName, setEditName] = useState('');
   const [editBaseHourly, setEditBaseHourly] = useState('');
-  const [editCcFee, setEditCcFee] = useState('');
+  const [editTrackSales, setEditTrackSales] = useState(false);
   const [editRoles, setEditRoles] = useState<TipOutRole[]>([]);
   const [editSaving, setEditSaving] = useState(false);
 
@@ -59,7 +61,6 @@ export default function VenuesScreen() {
     }, [])
   );
 
-  // add form helpers
   function addRole() {
     setRoles([...roles, { name: '', percentage: 0, applies_to: 'total' }]);
   }
@@ -86,7 +87,7 @@ export default function VenuesScreen() {
       name: venueName.trim(),
       tip_out_roles: roles,
       base_hourly: baseHourly ? parseFloat(baseHourly) : null,
-      cc_fee_percent: ccFee ? parseFloat(ccFee) : null,
+      track_sales: trackSales,
     });
     setSaving(false);
     if (error) {
@@ -94,7 +95,7 @@ export default function VenuesScreen() {
     } else {
       setVenueName('');
       setBaseHourly('');
-      setCcFee('');
+      setTrackSales(false);
       setRoles([]);
       setShowForm(false);
       fetchVenues();
@@ -115,12 +116,11 @@ export default function VenuesScreen() {
     ]);
   }
 
-  // edit modal helpers
   function openEdit(venue: Venue) {
     setEditVenue(venue);
     setEditName(venue.name);
     setEditBaseHourly(venue.base_hourly != null ? String(venue.base_hourly) : '');
-    setEditCcFee(venue.cc_fee_percent != null ? String(venue.cc_fee_percent) : '');
+    setEditTrackSales(venue.track_sales ?? false);
     setEditRoles(venue.tip_out_roles.map((r) => ({ ...r })));
   }
 
@@ -150,7 +150,7 @@ export default function VenuesScreen() {
         name: editName.trim(),
         tip_out_roles: editRoles,
         base_hourly: editBaseHourly ? parseFloat(editBaseHourly) : null,
-        cc_fee_percent: editCcFee ? parseFloat(editCcFee) : null,
+        track_sales: editTrackSales,
       })
       .eq('id', editVenue!.id);
     setEditSaving(false);
@@ -193,10 +193,10 @@ export default function VenuesScreen() {
                 <Text style={styles.metaValue}>${venue.base_hourly.toFixed(2)}/hr</Text>
               </View>
             )}
-            {venue.cc_fee_percent != null && (
+            {venue.track_sales && (
               <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>CC processing fee</Text>
-                <Text style={styles.metaValue}>{venue.cc_fee_percent}%</Text>
+                <Text style={styles.metaLabel}>Sales tracking</Text>
+                <Text style={styles.metaValue}>On</Text>
               </View>
             )}
             {venue.tip_out_roles.length === 0 ? (
@@ -236,18 +236,20 @@ export default function VenuesScreen() {
               value={baseHourly}
               onChangeText={setBaseHourly}
             />
-            <Text style={styles.fieldLabel}>CC PROCESSING FEE %</Text>
-            <Text style={styles.fieldHint}>
-              Some bars deduct a small fee from credit tips before paying out. Most bartenders leave this blank.
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 2.5 (optional)"
-              placeholderTextColor="#555"
-              keyboardType="decimal-pad"
-              value={ccFee}
-              onChangeText={setCcFee}
-            />
+
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.fieldLabel}>TRACK SALES</Text>
+                <Text style={styles.fieldHint}>Enable to log total sales per shift.</Text>
+              </View>
+              <Switch
+                value={trackSales}
+                onValueChange={setTrackSales}
+                trackColor={{ false: '#1e1e1e', true: '#f59e0b' }}
+                thumbColor="#fff"
+              />
+            </View>
+
             <Text style={styles.rolesLabel}>TIP-OUT ROLES</Text>
             {roles.map((role, i) => (
               <View key={i} style={styles.roleForm}>
@@ -283,7 +285,7 @@ export default function VenuesScreen() {
             <View style={styles.formButtons}>
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => { setShowForm(false); setVenueName(''); setBaseHourly(''); setCcFee(''); setRoles([]); }}
+                onPress={() => { setShowForm(false); setVenueName(''); setBaseHourly(''); setTrackSales(false); setRoles([]); }}
               >
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -295,7 +297,6 @@ export default function VenuesScreen() {
         )}
       </ScrollView>
 
-      {/* Edit venue modal */}
       <Modal
         visible={editVenue !== null}
         animationType="slide"
@@ -338,16 +339,18 @@ export default function VenuesScreen() {
               onChangeText={setEditBaseHourly}
             />
 
-            <Text style={styles.editLabel}>CC PROCESSING FEE %</Text>
-            <Text style={styles.fieldHint}>Most bartenders leave this blank.</Text>
-            <TextInput
-              style={styles.editInput}
-              placeholder="e.g. 2.5 (optional)"
-              placeholderTextColor="#555"
-              keyboardType="decimal-pad"
-              value={editCcFee}
-              onChangeText={setEditCcFee}
-            />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.editLabel}>TRACK SALES</Text>
+                <Text style={styles.fieldHint}>Enable to log total sales per shift.</Text>
+              </View>
+              <Switch
+                value={editTrackSales}
+                onValueChange={setEditTrackSales}
+                trackColor={{ false: '#1e1e1e', true: '#f59e0b' }}
+                thumbColor="#fff"
+              />
+            </View>
 
             <Text style={styles.editLabel}>TIP-OUT ROLES</Text>
             {editRoles.map((role, i) => (
@@ -427,6 +430,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 12, fontSize: 15,
     borderWidth: 1, borderColor: '#1e1e1e', marginBottom: 8,
   },
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 16, marginBottom: 8,
+  },
+  toggleInfo: { flex: 1, marginRight: 16 },
   rolesLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 16, marginBottom: 8 },
   roleForm: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   appliesToggle: {
