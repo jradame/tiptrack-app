@@ -24,15 +24,21 @@ type Venue = {
   tip_out_roles: TipOutRole[];
   base_hourly: number | null;
   cc_fee_percent: number | null;
+  track_sales: boolean | null;
 };
+
+type ShiftType = 'day' | 'night';
 
 export default function LogShiftScreen() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [shiftDate, setShiftDate] = useState(todayStr());
+  const [shiftType, setShiftType] = useState<ShiftType>('night');
   const [hours, setHours] = useState('');
   const [cashTips, setCashTips] = useState('');
   const [creditTips, setCreditTips] = useState('');
+  const [sales, setSales] = useState('');
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(
@@ -106,12 +112,15 @@ export default function LogShiftScreen() {
       venue_id: selectedVenue.id,
       venue_name: selectedVenue.name,
       shift_date: shiftDate,
+      shift_type: shiftType,
       hours: parseFloat(hours),
       cash_tips: parseFloat(cashTips) || 0,
       credit_tips: parseFloat(creditTips) || 0,
+      sales: parseFloat(sales) || null,
       tip_outs: tipOuts,
       total_tip_out: totalTipOut(),
       take_home: calcTakeHome(),
+      notes: notes.trim() || null,
     });
     setSaving(false);
     if (error) {
@@ -121,7 +130,10 @@ export default function LogShiftScreen() {
       setHours('');
       setCashTips('');
       setCreditTips('');
+      setSales('');
+      setNotes('');
       setShiftDate(todayStr());
+      setShiftType('night');
     }
   }
 
@@ -131,6 +143,7 @@ export default function LogShiftScreen() {
   const wageEarnings = calcWageEarnings();
   const hasCcFee = ccFee > 0;
   const hasWage = wageEarnings > 0;
+  const showSales = selectedVenue?.track_sales;
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
@@ -160,6 +173,22 @@ export default function LogShiftScreen() {
         placeholder="YYYY-MM-DD"
         placeholderTextColor="#555"
       />
+
+      <Text style={styles.sectionLabel}>SHIFT TYPE</Text>
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggleButton, shiftType === 'day' && styles.toggleButtonActive]}
+          onPress={() => setShiftType('day')}
+        >
+          <Text style={[styles.toggleText, shiftType === 'day' && styles.toggleTextActive]}>☀️  Day</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, shiftType === 'night' && styles.toggleButtonActive]}
+          onPress={() => setShiftType('night')}
+        >
+          <Text style={[styles.toggleText, shiftType === 'night' && styles.toggleTextActive]}>🌙  Night</Text>
+        </TouchableOpacity>
+      </View>
 
       <Text style={styles.sectionLabel}>HOURS WORKED</Text>
       <TextInput
@@ -191,6 +220,33 @@ export default function LogShiftScreen() {
         keyboardType="decimal-pad"
         placeholder="$0.00 (optional)"
         placeholderTextColor="#555"
+      />
+
+      {showSales && (
+        <>
+          <Text style={styles.sectionLabel}>SALES</Text>
+          <Text style={styles.fieldHint}>Total sales for the shift (optional).</Text>
+          <TextInput
+            style={styles.input}
+            value={sales}
+            onChangeText={setSales}
+            keyboardType="decimal-pad"
+            placeholder="$0.00 (optional)"
+            placeholderTextColor="#555"
+          />
+        </>
+      )}
+
+      <Text style={styles.sectionLabel}>NOTES</Text>
+      <TextInput
+        style={[styles.input, styles.notesInput]}
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Anything worth remembering about this shift... (optional)"
+        placeholderTextColor="#555"
+        multiline
+        numberOfLines={3}
+        textAlignVertical="top"
       />
 
       {(tipOuts.length > 0 || hasCcFee || hasWage) && (
@@ -253,6 +309,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, fontSize: 16,
     borderWidth: 1, borderColor: '#1e1e1e',
   },
+  notesInput: {
+    height: 90,
+    paddingTop: 14,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 4,
+  },
+  toggleButton: {
+    flex: 1, paddingVertical: 12, borderRadius: 10,
+    backgroundColor: '#111111', borderWidth: 1, borderColor: '#1e1e1e',
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#f59e0b', borderColor: '#f59e0b',
+  },
+  toggleText: { color: '#666', fontSize: 14, fontWeight: '600' },
+  toggleTextActive: { color: '#0a0a0a', fontWeight: '700' },
   breakdown: {
     backgroundColor: '#111111', borderRadius: 12, padding: 16,
     marginTop: 24, borderWidth: 1, borderColor: '#1e1e1e',
