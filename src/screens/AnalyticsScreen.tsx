@@ -49,6 +49,42 @@ export default function AnalyticsScreen() {
     }, [])
   );
 
+  function getWeekOverWeek() {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+
+    // This week: Sunday to today
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(now.getDate() - dayOfWeek);
+    thisWeekStart.setHours(0, 0, 0, 0);
+
+    // Last week: Sunday to Saturday
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(thisWeekStart.getDate() - 1);
+
+    const thisWeekTotal = shifts
+      .filter((s) => {
+        const d = new Date(s.shift_date + 'T00:00:00');
+        return d >= thisWeekStart && d <= now;
+      })
+      .reduce((sum, s) => sum + s.take_home, 0);
+
+    const lastWeekTotal = shifts
+      .filter((s) => {
+        const d = new Date(s.shift_date + 'T00:00:00');
+        return d >= lastWeekStart && d <= lastWeekEnd;
+      })
+      .reduce((sum, s) => sum + s.take_home, 0);
+
+    const diff = thisWeekTotal - lastWeekTotal;
+    const pct = lastWeekTotal > 0 ? (diff / lastWeekTotal) * 100 : null;
+    const up = diff >= 0;
+
+    return { thisWeekTotal, lastWeekTotal, diff, pct, up };
+  }
+
   function getDayOfWeekData() {
     const totals = Array(7).fill(0);
     const counts = Array(7).fill(0);
@@ -97,6 +133,7 @@ export default function AnalyticsScreen() {
       .sort((a, b) => b.amount - a.amount);
   }
 
+  const wow = getWeekOverWeek();
   const dayData = getDayOfWeekData();
   const monthlyData = getMonthlyData();
   const venueData = getVenueData();
@@ -130,6 +167,42 @@ export default function AnalyticsScreen() {
         />
       }
     >
+      {/* Week over week */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>WEEK OVER WEEK</Text>
+        <Text style={styles.sectionSub}>This week vs last week</Text>
+        <View style={styles.card}>
+          <View style={styles.wowRow}>
+            <View style={styles.wowBlock}>
+              <Text style={styles.wowLabel}>THIS WEEK</Text>
+              <Text style={styles.wowAmount}>${wow.thisWeekTotal.toFixed(0)}</Text>
+            </View>
+            <View style={styles.wowDivider} />
+            <View style={styles.wowBlock}>
+              <Text style={styles.wowLabel}>LAST WEEK</Text>
+              <Text style={styles.wowAmount}>${wow.lastWeekTotal.toFixed(0)}</Text>
+            </View>
+          </View>
+          <View style={styles.wowDiffRow}>
+            {wow.lastWeekTotal === 0 && wow.thisWeekTotal === 0 ? (
+              <Text style={styles.wowNeutral}>No shifts logged yet this week or last.</Text>
+            ) : (
+              <>
+                <Text style={[styles.wowDiff, wow.up ? styles.wowUp : styles.wowDown]}>
+                  {wow.up ? '▲' : '▼'} ${Math.abs(wow.diff).toFixed(0)}
+                </Text>
+                {wow.pct !== null && (
+                  <Text style={[styles.wowPct, wow.up ? styles.wowUp : styles.wowDown]}>
+                    {' '}({wow.up ? '+' : ''}{wow.pct.toFixed(1)}%)
+                  </Text>
+                )}
+                <Text style={styles.wowVsLabel}> vs last week</Text>
+              </>
+            )}
+          </View>
+        </View>
+      </View>
+
       {/* Day of week */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>EARNINGS BY DAY</Text>
@@ -233,6 +306,20 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 11, color: '#555', letterSpacing: 1.5, marginBottom: 4 },
   sectionSub: { fontSize: 12, color: '#444', marginBottom: 12 },
   card: { backgroundColor: '#111111', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#1e1e1e' },
+  // Week over week
+  wowRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  wowBlock: { flex: 1, alignItems: 'center' },
+  wowLabel: { fontSize: 10, color: '#555', letterSpacing: 1.5, marginBottom: 6 },
+  wowAmount: { fontSize: 28, fontWeight: '700', color: '#fff' },
+  wowDivider: { width: 1, height: 48, backgroundColor: '#1e1e1e', marginHorizontal: 16 },
+  wowDiffRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  wowDiff: { fontSize: 16, fontWeight: '700' },
+  wowPct: { fontSize: 14, fontWeight: '600' },
+  wowVsLabel: { fontSize: 13, color: '#555' },
+  wowUp: { color: '#22c55e' },
+  wowDown: { color: '#ef4444' },
+  wowNeutral: { fontSize: 13, color: '#555', textAlign: 'center' },
+  // Charts
   chartNote: { fontSize: 11, color: '#444', marginTop: 10, textAlign: 'center' },
   barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 160, paddingTop: 16 },
   barColumn: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
