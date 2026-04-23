@@ -76,19 +76,24 @@ export default function DashboardScreen() {
 await supabase.from('shifts').delete().eq('user_id', user.id);
 await supabase.from('venues').delete().eq('user_id', user.id);
 
-// Get session token and call edge function
+// Get session token
 const { data: { session } } = await supabase.auth.getSession();
-console.log('Session token:', session?.access_token ? 'found' : 'missing');
-console.log('Calling delete-user function...');
-const { error } = await supabase.functions.invoke('delete-user', {
-  headers: {
-    Authorization: `Bearer ${session?.access_token}`,
-  },
-});
-console.log('Function error:', error);
 
-                    setDeleting(false);
-                    await supabase.auth.signOut();
+// Call admin API directly to delete user
+const response = await fetch(
+  `https://sskduyhflkgnlawzwdsv.supabase.co/auth/v1/admin/users/${user.id}`,
+  {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNza2R1eWhmbGtnbmxhd3p3ZHN2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjI1NzQ3MywiZXhwIjoyMDkxODMzNDczfQ.8QwEPGlk3l-BRRyDsLRECvlBFPq9JQ6caJdchyIrPJ0`,
+      apikey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNza2R1eWhmbGtnbmxhd3p3ZHN2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjI1NzQ3MywiZXhwIjoyMDkxODMzNDczfQ.8QwEPGlk3l-BRRyDsLRECvlBFPq9JQ6caJdchyIrPJ0`,
+    },
+  }
+);
+console.log('Delete user response:', response.status);
+
+setDeleting(false);
+await supabase.auth.signOut();
                   },
                 },
               ]
