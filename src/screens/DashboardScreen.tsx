@@ -76,16 +76,16 @@ export default function DashboardScreen() {
                     await supabase.from('shifts').delete().eq('user_id', user.id);
                     await supabase.from('venues').delete().eq('user_id', user.id);
 
-                    // Delete auth account via edge function
-                    const { error } = await supabase.functions.invoke('delete-user');
+                    // Get session token and call edge function
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const { error } = await supabase.functions.invoke('delete-user', {
+                      headers: {
+                        Authorization: `Bearer ${session?.access_token}`,
+                      },
+                    });
 
                     setDeleting(false);
-                    if (error) {
-                      // Sign out anyway even if function fails
-                      await supabase.auth.signOut();
-                    } else {
-                      await supabase.auth.signOut();
-                    }
+                    await supabase.auth.signOut();
                   },
                 },
               ]
