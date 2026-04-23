@@ -32,7 +32,7 @@ export default function LoginScreen() {
     } else {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) Alert.alert('Sign up failed', error.message);
-      else Alert.alert('Check your email', 'Confirm your account then log in.');
+      // no alert needed, onboarding will show
     }
     setLoading(false);
   }
