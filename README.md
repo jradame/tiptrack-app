@@ -1,37 +1,38 @@
 # TipTrack
 
-A mobile tip tracking app for bartenders who deserve to know what they actually made.
+A mobile tip tracking app for bartenders and servers who deserve to know what they actually made.
 
-Built with React Native, Expo, and Supabase.
+Built with React Native, Expo, and Supabase. Available on the App Store.
 
 ---
 
 ## The Problem
 
-Bartenders earn inconsistent income from cash tips, credit card tips, and mandatory tip-outs to support staff. Most track earnings using memory, notes apps, or pen and paper. Without clear visibility into actual take-home pay, it's nearly impossible to budget, plan savings, or know which shifts and venues are worth the effort.
+Bartenders and servers earn inconsistent income from cash tips, credit card tips, and mandatory tip-outs to support staff. Most track earnings using memory, notes apps, or pen and paper. Without clear visibility into actual take-home pay, it is nearly impossible to budget, plan savings, or know which shifts and venues are worth the effort.
 
 ## The Solution
 
-TipTrack lets bartenders log complete shifts in under 30 seconds, calculates tip-outs automatically, and gives a clear view of weekly and monthly earnings across multiple venues.
+TipTrack lets tipped workers log complete shifts in under 30 seconds, calculates tip-outs automatically, and gives a clear view of weekly and monthly earnings across multiple venues.
 
 ---
 
 ## Features
 
-- **Auth** - Email sign up and login with session persistence via AsyncStorage
-- **Dashboard** - Weekly take-home hero number, all-time stats, recent shifts with effective hourly rate
-- **Log Shift** - Date, venue, hours, cash and credit tips with live tip-out breakdown and real-time take-home calculation
-- **Venues** - Create venues with fully custom tip-out roles (name, percentage, applies to total or credit tips)
-- **History** - Full shift log filtered by week, month, or all time. Tap any shift to expand the full breakdown including effective hourly rate. Delete shifts.
+- **Auth** - Email sign up, login, forgot password, and account deletion with session persistence via AsyncStorage
+- **Dashboard** - Weekly take-home hero number, all-time stats, recent shifts with effective hourly rate, and delete account
+- **Log Shift** - Date, venue, shift type (day/night), hours, cash and credit tips, optional sales, notes, with live tip-out breakdown and real-time take-home calculation
+- **Venues** - Create venues with base hourly wage, optional sales tracking toggle, and fully custom tip-out roles (name, percentage, applies to total or credit tips)
+- **History** - Full shift log filtered by week, month, or all time. Tap any shift to expand the full breakdown. Edit and delete shifts. CSV export.
+- **Analytics** - Week-over-week comparison, earnings by day of week, monthly totals over 6 months, and venue breakdown
 - **Cloud sync** - All data synced via Supabase with row-level security so users only ever see their own data
 
 ---
 
 ## Stack
 
-- React Native + Expo
+- React Native + Expo (~54)
 - TypeScript
-- Supabase (PostgreSQL + Auth + RLS)
+- Supabase (PostgreSQL + Auth + RLS + Edge Functions)
 - React Navigation (Bottom Tabs + Native Stack)
 - AsyncStorage
 
@@ -63,13 +64,19 @@ const SUPABASE_URL = 'your-project-url'
 const SUPABASE_ANON_KEY = 'your-anon-key'
 ```
 
-6. Start the app
+6. Create a `.env` file in the root with your service role key
+
+```
+EXPO_PUBLIC_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+7. Start the app
 
 ```bash
 npx expo start
 ```
 
-7. Scan the QR code with Expo Go on your phone
+8. Scan the QR code with Expo Go on your phone
 
 ---
 
@@ -79,6 +86,7 @@ npx expo start
 tiptrack-app/
   App.tsx
   index.ts
+  .env
   src/
     lib/
       supabase.ts
@@ -88,22 +96,16 @@ tiptrack-app/
       DashboardScreen.tsx
       LogShiftScreen.tsx
       HistoryScreen.tsx
+      AnalyticsScreen.tsx
       VenuesScreen.tsx
       LoginScreen.tsx
+      OnboardingScreen.tsx
   supabase/
     schema.sql
+    functions/
+      delete-user/
+        index.ts
 ```
-
----
-
-## Roadmap
-
-- Tax estimate tracking for IRS tip reporting
-- Base wage + tips for total compensation per shift
-- Credit card processing fee deduction
-- CSV export for tax filing and records
-- Shift logging reminders via push notification
-- Effective hourly rate chart across venues
 
 ---
 
