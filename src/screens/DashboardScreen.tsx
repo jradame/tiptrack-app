@@ -85,8 +85,8 @@ const response = await fetch(
   {
     method: 'DELETE',
     headers: {
-      Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNza2R1eWhmbGtnbmxhd3p3ZHN2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjI1NzQ3MywiZXhwIjoyMDkxODMzNDczfQ.8QwEPGlk3l-BRRyDsLRECvlBFPq9JQ6caJdchyIrPJ0`,
-      apikey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNza2R1eWhmbGtnbmxhd3p3ZHN2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjI1NzQ3MywiZXhwIjoyMDkxODMzNDczfQ.8QwEPGlk3l-BRRyDsLRECvlBFPq9JQ6caJdchyIrPJ0`,
+      Authorization: `Bearer ${process.env.EXPO_PUBLIC_SERVICE_ROLE_KEY}`,
+      apikey: `${process.env.EXPO_PUBLIC_SERVICE_ROLE_KEY}`,
     },
   }
 );
