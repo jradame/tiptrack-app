@@ -73,16 +73,19 @@ export default function DashboardScreen() {
                     if (!user) return;
 
                     // Delete all user data
-                    await supabase.from('shifts').delete().eq('user_id', user.id);
-                    await supabase.from('venues').delete().eq('user_id', user.id);
+await supabase.from('shifts').delete().eq('user_id', user.id);
+await supabase.from('venues').delete().eq('user_id', user.id);
 
-                    // Get session token and call edge function
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const { error } = await supabase.functions.invoke('delete-user', {
-                      headers: {
-                        Authorization: `Bearer ${session?.access_token}`,
-                      },
-                    });
+// Get session token and call edge function
+const { data: { session } } = await supabase.auth.getSession();
+console.log('Session token:', session?.access_token ? 'found' : 'missing');
+console.log('Calling delete-user function...');
+const { error } = await supabase.functions.invoke('delete-user', {
+  headers: {
+    Authorization: `Bearer ${session?.access_token}`,
+  },
+});
+console.log('Function error:', error);
 
                     setDeleting(false);
                     await supabase.auth.signOut();
