@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { KeyboardToolbar } from 'react-native-keyboard-controller';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 
 type TipOutRole = {
@@ -30,6 +32,7 @@ type Venue = {
 type ShiftType = 'day' | 'night';
 
 export default function LogShiftScreen() {
+  const navigation = useNavigation();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [shiftDate, setShiftDate] = useState(todayStr());
@@ -40,6 +43,21 @@ export default function LogShiftScreen() {
   const [sales, setSales] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardWillShow', () => {
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+    });
+    const hideSub = Keyboard.addListener('keyboardWillHide', () => {
+      navigation.getParent()?.setOptions({
+        tabBarStyle: { backgroundColor: '#0a0a0a', borderTopColor: '#111111' },
+      });
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,153 +164,207 @@ export default function LogShiftScreen() {
   const showSales = selectedVenue?.track_sales;
 
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.sectionLabel}>VENUE</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.venueRow}>
-        {venues.map((v) => (
-          <TouchableOpacity
-            key={v.id}
-            style={[styles.venueChip, selectedVenue?.id === v.id && styles.venueChipActive]}
-            onPress={() => setSelectedVenue(v)}
-          >
-            <Text style={[styles.venueChipText, selectedVenue?.id === v.id && styles.venueChipTextActive]}>
-              {v.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-        {venues.length === 0 && (
-          <Text style={styles.noVenue}>Add a venue in the Venues tab first.</Text>
-        )}
-      </ScrollView>
-
-      <Text style={styles.sectionLabel}>DATE</Text>
-      <TextInput
-        style={styles.input}
-        value={shiftDate}
-        onChangeText={setShiftDate}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor="#555"
-      />
-
-      <Text style={styles.sectionLabel}>SHIFT TYPE</Text>
-      <View style={styles.toggleRow}>
-        <TouchableOpacity
-          style={[styles.toggleButton, shiftType === 'day' && styles.toggleButtonActive]}
-          onPress={() => setShiftType('day')}
-        >
-          <Text style={[styles.toggleText, shiftType === 'day' && styles.toggleTextActive]}>☀️  Day</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleButton, shiftType === 'night' && styles.toggleButtonActive]}
-          onPress={() => setShiftType('night')}
-        >
-          <Text style={[styles.toggleText, shiftType === 'night' && styles.toggleTextActive]}>🌙  Night</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionLabel}>HOURS WORKED</Text>
-      <TextInput
-        style={styles.input}
-        value={hours}
-        onChangeText={setHours}
-        keyboardType="decimal-pad"
-        placeholder="e.g. 6.5"
-        placeholderTextColor="#555"
-      />
-
-      <Text style={styles.sectionLabel}>CASH TIPS</Text>
-      <Text style={styles.fieldHint}>What you walked out with tonight.</Text>
-      <TextInput
-        style={styles.input}
-        value={cashTips}
-        onChangeText={setCashTips}
-        keyboardType="decimal-pad"
-        placeholder="$0.00"
-        placeholderTextColor="#555"
-      />
-
-      <Text style={styles.sectionLabel}>CREDIT TIPS</Text>
-      <Text style={styles.fieldHint}>Only if your bar pays credit tips the same night. Most don't -- leave blank.</Text>
-      <TextInput
-        style={styles.input}
-        value={creditTips}
-        onChangeText={setCreditTips}
-        keyboardType="decimal-pad"
-        placeholder="$0.00 (optional)"
-        placeholderTextColor="#555"
-      />
-
-      {showSales && (
-        <>
-          <Text style={styles.sectionLabel}>SALES</Text>
-          <Text style={styles.fieldHint}>Total sales for the shift (optional).</Text>
-          <TextInput
-            style={styles.input}
-            value={sales}
-            onChangeText={setSales}
-            keyboardType="decimal-pad"
-            placeholder="$0.00 (optional)"
-            placeholderTextColor="#555"
-          />
-        </>
-      )}
-
-      <Text style={styles.sectionLabel}>NOTES</Text>
-      <TextInput
-        style={[styles.input, styles.notesInput]}
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Anything worth remembering about this shift... (optional)"
-        placeholderTextColor="#555"
-        multiline
-        numberOfLines={3}
-        textAlignVertical="top"
-      />
-
-      {(tipOuts.length > 0 || hasCcFee || hasWage) && (
-        <View style={styles.breakdown}>
-          <Text style={styles.breakdownTitle}>BREAKDOWN</Text>
-          {hasWage && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Base wage ({selectedVenue?.base_hourly?.toFixed(2)}/hr x {hours}hr)</Text>
-              <Text style={styles.breakdownGreen}>+${wageEarnings.toFixed(2)}</Text>
-            </View>
-          )}
-          {hasCcFee && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>CC processing fee ({selectedVenue?.cc_fee_percent}%)</Text>
-              <Text style={styles.breakdownRed}>-${ccFee.toFixed(2)}</Text>
-            </View>
-          )}
-          {tipOuts.map((t) => (
-            <View key={t.role} style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>{t.role} tip out</Text>
-              <Text style={styles.breakdownRed}>-${t.amount.toFixed(2)}</Text>
-            </View>
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionLabel}>VENUE</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.venueRow}>
+          {venues.map((v) => (
+            <TouchableOpacity
+              key={v.id}
+              style={[styles.venueChip, selectedVenue?.id === v.id && styles.venueChipActive]}
+              onPress={() => setSelectedVenue(v)}
+            >
+              <Text style={[styles.venueChipText, selectedVenue?.id === v.id && styles.venueChipTextActive]}>
+                {v.name}
+              </Text>
+            </TouchableOpacity>
           ))}
-          {tipOuts.length > 0 && (
-            <View style={[styles.breakdownRow, styles.breakdownTotal]}>
-              <Text style={styles.breakdownLabel}>Total tip out</Text>
-              <Text style={styles.breakdownRed}>-${totalTipOut().toFixed(2)}</Text>
-            </View>
+          {venues.length === 0 && (
+            <Text style={styles.noVenue}>Add a venue in the Venues tab first.</Text>
           )}
+        </ScrollView>
+
+        <Text style={styles.sectionLabel}>DATE</Text>
+        <TextInput
+          style={styles.input}
+          value={shiftDate}
+          onChangeText={setShiftDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor="#555"
+        />
+
+        <Text style={styles.sectionLabel}>SHIFT TYPE</Text>
+        <View style={styles.toggleRow}>
+          <TouchableOpacity
+            style={[styles.toggleButton, shiftType === 'day' && styles.toggleButtonActive]}
+            onPress={() => setShiftType('day')}
+          >
+            <Text style={[styles.toggleText, shiftType === 'day' && styles.toggleTextActive]}>☀️  Day</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, shiftType === 'night' && styles.toggleButtonActive]}
+            onPress={() => setShiftType('night')}
+          >
+            <Text style={[styles.toggleText, shiftType === 'night' && styles.toggleTextActive]}>🌙  Night</Text>
+          </TouchableOpacity>
         </View>
-      )}
 
-      <View style={styles.takeHomeBox}>
-        <Text style={styles.takeHomeLabel}>YOUR TAKE-HOME</Text>
-        <Text style={styles.takeHomeAmount}>${takeHome.toFixed(2)}</Text>
-      </View>
+        <Text style={styles.sectionLabel}>HOURS WORKED</Text>
+        <TextInput
+          style={styles.input}
+          value={hours}
+          onChangeText={setHours}
+          keyboardType="decimal-pad"
+          placeholder="e.g. 6.5"
+          placeholderTextColor="#555"
+        />
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-        {saving ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.saveButtonText}>Log Shift</Text>}
-      </TouchableOpacity>
-    </ScrollView>
+        <Text style={styles.sectionLabel}>CASH TIPS</Text>
+        <Text style={styles.fieldHint}>What you walked out with tonight.</Text>
+        <TextInput
+          style={styles.input}
+          value={cashTips}
+          onChangeText={setCashTips}
+          keyboardType="decimal-pad"
+          placeholder="$0.00"
+          placeholderTextColor="#555"
+        />
+
+        <Text style={styles.sectionLabel}>CREDIT TIPS</Text>
+        <Text style={styles.fieldHint}>Only if your bar pays credit tips the same night. Most don't, leave blank.</Text>
+        <TextInput
+          style={styles.input}
+          value={creditTips}
+          onChangeText={setCreditTips}
+          keyboardType="decimal-pad"
+          placeholder="$0.00 (optional)"
+          placeholderTextColor="#555"
+        />
+
+        {showSales && (
+          <>
+            <Text style={styles.sectionLabel}>SALES</Text>
+            <Text style={styles.fieldHint}>Total sales for the shift (optional).</Text>
+            <TextInput
+              style={styles.input}
+              value={sales}
+              onChangeText={setSales}
+              keyboardType="decimal-pad"
+              placeholder="$0.00 (optional)"
+              placeholderTextColor="#555"
+            />
+          </>
+        )}
+
+        <Text style={styles.sectionLabel}>NOTES</Text>
+        <TextInput
+          style={[styles.input, styles.notesInput]}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Anything worth remembering about this shift... (optional)"
+          placeholderTextColor="#555"
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
+
+        {(tipOuts.length > 0 || hasCcFee || hasWage) && (
+          <View style={styles.breakdown}>
+            <Text style={styles.breakdownTitle}>BREAKDOWN</Text>
+            {hasWage && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Base wage ({selectedVenue?.base_hourly?.toFixed(2)}/hr x {hours}hr)</Text>
+                <Text style={styles.breakdownGreen}>+${wageEarnings.toFixed(2)}</Text>
+              </View>
+            )}
+            {hasCcFee && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>CC processing fee ({selectedVenue?.cc_fee_percent}%)</Text>
+                <Text style={styles.breakdownRed}>-${ccFee.toFixed(2)}</Text>
+              </View>
+            )}
+            {tipOuts.map((t) => (
+              <View key={t.role} style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{t.role} tip out</Text>
+                <Text style={styles.breakdownRed}>-${t.amount.toFixed(2)}</Text>
+              </View>
+            ))}
+            {tipOuts.length > 0 && (
+              <View style={[styles.breakdownRow, styles.breakdownTotal]}>
+                <Text style={styles.breakdownLabel}>Total tip out</Text>
+                <Text style={styles.breakdownRed}>-${totalTipOut().toFixed(2)}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        <View style={styles.takeHomeBox}>
+          <Text style={styles.takeHomeLabel}>YOUR TAKE-HOME</Text>
+          <Text style={styles.takeHomeAmount}>${takeHome.toFixed(2)}</Text>
+        </View>
+
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+          {saving ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.saveButtonText}>Log Shift</Text>}
+        </TouchableOpacity>
+      </ScrollView>
+      <KeyboardToolbar
+        theme={{
+          dark: {
+            primary: '#f59e0b',
+            disabled: '#444',
+            background: '#1a1a1a',
+            ring: '#f59e0b',
+          },
+          light: {
+            primary: '#f59e0b',
+            disabled: '#444',
+            background: '#1a1a1a',
+            ring: '#f59e0b',
+          },
+        }}
+      >
+        <KeyboardToolbar.Prev
+          icon={({ isDisabled }: { isDisabled: boolean }) => (
+            <Text
+              style={{
+                color: isDisabled ? '#444' : '#f59e0b',
+                fontSize: 16,
+                fontWeight: '600',
+                paddingHorizontal: 12,
+              }}
+            >
+              Previous
+            </Text>
+          )}
+        />
+        <KeyboardToolbar.Next
+          icon={({ isDisabled }: { isDisabled: boolean }) => (
+            <Text
+              style={{
+                color: isDisabled ? '#444' : '#f59e0b',
+                fontSize: 16,
+                fontWeight: '600',
+                paddingHorizontal: 12,
+              }}
+            >
+              Next
+            </Text>
+          )}
+        />
+        <KeyboardToolbar.Done text="Done" />
+      </KeyboardToolbar>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a', paddingHorizontal: 20 },
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
   sectionLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 24, marginBottom: 6 },
   fieldHint: { fontSize: 12, color: '#444', marginBottom: 8, lineHeight: 18 },
   venueRow: { flexDirection: 'row', marginBottom: 4 },
