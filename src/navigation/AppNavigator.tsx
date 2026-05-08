@@ -25,6 +25,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Analytics: '▲',
     Venues: '⌂',
   };
+
   return (
     <View style={tabIconStyles.container}>
       <Text style={[tabIconStyles.icon, focused && tabIconStyles.focused]}>
@@ -35,25 +36,40 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 }
 
 const tabIconStyles = StyleSheet.create({
-  container: { alignItems: 'center' },
-  icon: { fontSize: 18, color: '#444' },
-  focused: { color: '#f59e0b' },
+  container: {
+    alignItems: 'center',
+  },
+  icon: {
+    fontSize: 18,
+    color: '#444',
+  },
+  focused: {
+    color: '#f59e0b',
+  },
 });
 
 function MainTabs({ onSignOut }: { onSignOut: () => void }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: '#0a0a0a' },
+        headerStyle: {
+          backgroundColor: '#0a0a0a',
+        },
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
         headerShadowVisible: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           backgroundColor: '#0a0a0a',
           borderTopColor: '#111111',
         },
         tabBarShowLabel: true,
-        tabBarLabelStyle: { fontSize: 10, marginBottom: 2 },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          marginBottom: 2,
+        },
         tabBarActiveTintColor: '#f59e0b',
         tabBarInactiveTintColor: '#444',
         tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
@@ -81,6 +97,7 @@ export default function AppNavigator() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+
       if (session) {
         checkOnboarding();
       } else {
@@ -88,8 +105,11 @@ export default function AppNavigator() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+
       if (session) {
         checkOnboarding();
       } else {
@@ -103,6 +123,7 @@ export default function AppNavigator() {
 
   async function checkOnboarding() {
     const { data } = await supabase.from('venues').select('id').limit(1);
+
     setNeedsOnboarding(!data || data.length === 0);
     setReady(true);
   }

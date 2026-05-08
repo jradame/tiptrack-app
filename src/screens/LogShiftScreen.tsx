@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,11 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  InputAccessoryView,
+  Platform,
   Keyboard,
 } from 'react-native';
-import { KeyboardToolbar } from 'react-native-keyboard-controller';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 
 type TipOutRole = {
@@ -31,8 +32,20 @@ type Venue = {
 
 type ShiftType = 'day' | 'night';
 
+const ACCESSORY_ID = 'logShiftInputAccessoryV4';
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
 export default function LogShiftScreen() {
-  const navigation = useNavigation();
+  const dateRef = useRef<TextInput>(null);
+  const hoursRef = useRef<TextInput>(null);
+  const cashTipsRef = useRef<TextInput>(null);
+  const creditTipsRef = useRef<TextInput>(null);
+  const salesRef = useRef<TextInput>(null);
+  const notesRef = useRef<TextInput>(null);
+
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [shiftDate, setShiftDate] = useState(todayStr());
@@ -43,21 +56,15 @@ export default function LogShiftScreen() {
   const [sales, setSales] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [focusedInputIndex, setFocusedInputIndex] = useState(0);
 
-  useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardWillShow', () => {
-      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
-    });
-    const hideSub = Keyboard.addListener('keyboardWillHide', () => {
-      navigation.getParent()?.setOptions({
-        tabBarStyle: { backgroundColor: '#0a0a0a', borderTopColor: '#111111' },
-      });
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [navigation]);
+  const showSales = selectedVenue?.track_sales === true;
+
+  const inputRefs = useMemo(() => {
+    return showSales
+      ? [dateRef, hoursRef, cashTipsRef, creditTipsRef, salesRef, notesRef]
+      : [dateRef, hoursRef, cashTipsRef, creditTipsRef, notesRef];
+  }, [showSales]);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,38 +72,83 @@ export default function LogShiftScreen() {
     }, [])
   );
 
-  function todayStr() {
-    return new Date().toISOString().split('T')[0];
-  }
-
   async function fetchVenues() {
     const { data } = await supabase.from('venues').select('*').order('name');
+
     if (data) {
       setVenues(data);
-      if (data.length > 0 && !selectedVenue) setSelectedVenue(data[0]);
+
+      if (data.length > 0 && !selectedVenue) {
+        setSelectedVenue(data[0]);
+      }
     }
+  }
+
+  function focusPreviousInput() {
+    const previousIndex = Math.max(focusedInputIndex - 1, 0);
+    setFocusedInputIndex(previousIndex);
+
+    requestAnimationFrame(() => {
+      inputRefs[previousIndex]?.current?.focus();
+    });
+  }
+
+  function focusNextInput() {
+    const nextIndex = Math.min(focusedInputIndex + 1, inputRefs.length - 1);
+    setFocusedInputIndex(nextIndex);
+
+    requestAnimationFrame(() => {
+      inputRefs[nextIndex]?.current?.focus();
+    });
+  }
+
+  function dismissKeyboard() {
+    inputRefs[focusedInputIndex]?.current?.blur();
+    Keyboard.dismiss();
+  }
+
+  function accessoryProps(index: number) {
+    return {
+      inputAccessoryViewID: Platform.OS === 'ios' ? ACCESSORY_ID : undefined,
+      onFocus: () => setFocusedInputIndex(index),
+      autoCorrect: false,
+      spellCheck: false,
+      autoComplete: 'off' as const,
+      textContentType: 'none' as const,
+      importantForAutofill: 'no' as const,
+    };
   }
 
   function calcTipOuts(): { role: string; amount: number }[] {
     if (!selectedVenue) return [];
+
     const cash = parseFloat(cashTips) || 0;
     const credit = parseFloat(creditTips) || 0;
     const total = cash + credit;
+
     return selectedVenue.tip_out_roles.map((role) => {
       const base = role.applies_to === 'credit' ? credit : total;
-      return { role: role.name, amount: parseFloat(((base * role.percentage) / 100).toFixed(2)) };
+
+      return {
+        role: role.name,
+        amount: parseFloat(((base * role.percentage) / 100).toFixed(2)),
+      };
     });
   }
 
   function calcCcFee() {
     if (!selectedVenue?.cc_fee_percent) return 0;
+
     const credit = parseFloat(creditTips) || 0;
+
     return parseFloat(((credit * selectedVenue.cc_fee_percent) / 100).toFixed(2));
   }
 
   function calcWageEarnings() {
     if (!selectedVenue?.base_hourly) return 0;
+
     const hrs = parseFloat(hours) || 0;
+
     return parseFloat((hrs * selectedVenue.base_hourly).toFixed(2));
   }
 
@@ -110,6 +162,7 @@ export default function LogShiftScreen() {
     const ccFee = calcCcFee();
     const tipOut = totalTipOut();
     const wage = calcWageEarnings();
+
     return cash + (credit - ccFee) - tipOut + wage;
   }
 
@@ -118,13 +171,20 @@ export default function LogShiftScreen() {
       Alert.alert('No venue', 'Add a venue first in the Venues tab.');
       return;
     }
+
     if (!hours || !shiftDate) {
       Alert.alert('Missing info', 'Enter hours and date.');
       return;
     }
+
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     const tipOuts = calcTipOuts();
+
     const { error } = await supabase.from('shifts').insert({
       user_id: user?.id,
       venue_id: selectedVenue.id,
@@ -140,7 +200,9 @@ export default function LogShiftScreen() {
       take_home: calcTakeHome(),
       notes: notes.trim() || null,
     });
+
     setSaving(false);
+
     if (error) {
       Alert.alert('Error', error.message);
     } else {
@@ -161,17 +223,24 @@ export default function LogShiftScreen() {
   const wageEarnings = calcWageEarnings();
   const hasCcFee = ccFee > 0;
   const hasWage = wageEarnings > 0;
-  const showSales = selectedVenue?.track_sales;
 
   return (
-    <>
+    <View style={styles.screen}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustKeyboardInsets={false}
+        automaticallyAdjustContentInsets={false}
       >
+        <View style={styles.debugBanner}>
+          <Text style={styles.debugBannerText}>KEYBOARD FIX V4 ACTIVE</Text>
+        </View>
+
         <Text style={styles.sectionLabel}>VENUE</Text>
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.venueRow}>
           {venues.map((v) => (
             <TouchableOpacity
@@ -184,6 +253,7 @@ export default function LogShiftScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+
           {venues.length === 0 && (
             <Text style={styles.noVenue}>Add a venue in the Venues tab first.</Text>
           )}
@@ -191,11 +261,14 @@ export default function LogShiftScreen() {
 
         <Text style={styles.sectionLabel}>DATE</Text>
         <TextInput
+          ref={dateRef}
           style={styles.input}
           value={shiftDate}
           onChangeText={setShiftDate}
           placeholder="YYYY-MM-DD"
           placeholderTextColor="#555"
+          keyboardAppearance="dark"
+          {...accessoryProps(0)}
         />
 
         <Text style={styles.sectionLabel}>SHIFT TYPE</Text>
@@ -204,65 +277,85 @@ export default function LogShiftScreen() {
             style={[styles.toggleButton, shiftType === 'day' && styles.toggleButtonActive]}
             onPress={() => setShiftType('day')}
           >
-            <Text style={[styles.toggleText, shiftType === 'day' && styles.toggleTextActive]}>☀️  Day</Text>
+            <Text style={[styles.toggleText, shiftType === 'day' && styles.toggleTextActive]}>
+              ☀️ Day
+            </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.toggleButton, shiftType === 'night' && styles.toggleButtonActive]}
             onPress={() => setShiftType('night')}
           >
-            <Text style={[styles.toggleText, shiftType === 'night' && styles.toggleTextActive]}>🌙  Night</Text>
+            <Text style={[styles.toggleText, shiftType === 'night' && styles.toggleTextActive]}>
+              🌙 Night
+            </Text>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionLabel}>HOURS WORKED</Text>
         <TextInput
+          ref={hoursRef}
           style={styles.input}
           value={hours}
           onChangeText={setHours}
           keyboardType="decimal-pad"
           placeholder="e.g. 6.5"
           placeholderTextColor="#555"
+          keyboardAppearance="dark"
+          {...accessoryProps(1)}
         />
 
         <Text style={styles.sectionLabel}>CASH TIPS</Text>
         <Text style={styles.fieldHint}>What you walked out with tonight.</Text>
         <TextInput
+          ref={cashTipsRef}
           style={styles.input}
           value={cashTips}
           onChangeText={setCashTips}
           keyboardType="decimal-pad"
           placeholder="$0.00"
           placeholderTextColor="#555"
+          keyboardAppearance="dark"
+          {...accessoryProps(2)}
         />
 
         <Text style={styles.sectionLabel}>CREDIT TIPS</Text>
-        <Text style={styles.fieldHint}>Only if your bar pays credit tips the same night. Most don't, leave blank.</Text>
+        <Text style={styles.fieldHint}>
+          Only if your bar pays credit tips the same night. Most don't, leave blank.
+        </Text>
         <TextInput
+          ref={creditTipsRef}
           style={styles.input}
           value={creditTips}
           onChangeText={setCreditTips}
           keyboardType="decimal-pad"
           placeholder="$0.00 (optional)"
           placeholderTextColor="#555"
+          keyboardAppearance="dark"
+          {...accessoryProps(3)}
         />
 
         {showSales && (
           <>
             <Text style={styles.sectionLabel}>SALES</Text>
-            <Text style={styles.fieldHint}>Total sales for the shift (optional).</Text>
+            <Text style={styles.fieldHint}>Total sales for the shift optional.</Text>
             <TextInput
+              ref={salesRef}
               style={styles.input}
               value={sales}
               onChangeText={setSales}
               keyboardType="decimal-pad"
               placeholder="$0.00 (optional)"
               placeholderTextColor="#555"
+              keyboardAppearance="dark"
+              {...accessoryProps(4)}
             />
           </>
         )}
 
         <Text style={styles.sectionLabel}>NOTES</Text>
         <TextInput
+          ref={notesRef}
           style={[styles.input, styles.notesInput]}
           value={notes}
           onChangeText={setNotes}
@@ -271,29 +364,39 @@ export default function LogShiftScreen() {
           multiline
           numberOfLines={3}
           textAlignVertical="top"
+          keyboardAppearance="dark"
+          {...accessoryProps(showSales ? 5 : 4)}
         />
 
         {(tipOuts.length > 0 || hasCcFee || hasWage) && (
           <View style={styles.breakdown}>
             <Text style={styles.breakdownTitle}>BREAKDOWN</Text>
+
             {hasWage && (
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Base wage ({selectedVenue?.base_hourly?.toFixed(2)}/hr x {hours}hr)</Text>
+                <Text style={styles.breakdownLabel}>
+                  Base wage (${selectedVenue?.base_hourly?.toFixed(2)}/hr x {hours}hr)
+                </Text>
                 <Text style={styles.breakdownGreen}>+${wageEarnings.toFixed(2)}</Text>
               </View>
             )}
+
             {hasCcFee && (
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>CC processing fee ({selectedVenue?.cc_fee_percent}%)</Text>
+                <Text style={styles.breakdownLabel}>
+                  CC processing fee ({selectedVenue?.cc_fee_percent}%)
+                </Text>
                 <Text style={styles.breakdownRed}>-${ccFee.toFixed(2)}</Text>
               </View>
             )}
+
             {tipOuts.map((t) => (
               <View key={t.role} style={styles.breakdownRow}>
                 <Text style={styles.breakdownLabel}>{t.role} tip out</Text>
                 <Text style={styles.breakdownRed}>-${t.amount.toFixed(2)}</Text>
               </View>
             ))}
+
             {tipOuts.length > 0 && (
               <View style={[styles.breakdownRow, styles.breakdownTotal]}>
                 <Text style={styles.breakdownLabel}>Total tip out</Text>
@@ -309,77 +412,138 @@ export default function LogShiftScreen() {
         </View>
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.saveButtonText}>Log Shift</Text>}
+          {saving ? (
+            <ActivityIndicator color="#0a0a0a" />
+          ) : (
+            <Text style={styles.saveButtonText}>Log Shift</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
-      <KeyboardToolbar
-        theme={{
-          dark: {
-            primary: '#f59e0b',
-            disabled: '#444',
-            background: '#1a1a1a',
-            ring: '#f59e0b',
-          },
-          light: {
-            primary: '#f59e0b',
-            disabled: '#444',
-            background: '#1a1a1a',
-            ring: '#f59e0b',
-          },
-        }}
-      >
-        <KeyboardToolbar.Prev
-          icon={({ isDisabled }: { isDisabled: boolean }) => (
-            <Text
-              style={{
-                color: isDisabled ? '#444' : '#f59e0b',
-                fontSize: 16,
-                fontWeight: '600',
-                paddingHorizontal: 12,
-              }}
+
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={ACCESSORY_ID} backgroundColor="#1a1a1a">
+          <View style={styles.inputAccessory}>
+            <TouchableOpacity
+              onPress={focusPreviousInput}
+              disabled={focusedInputIndex === 0}
+              style={styles.accessoryButton}
             >
-              Previous
-            </Text>
-          )}
-        />
-        <KeyboardToolbar.Next
-          icon={({ isDisabled }: { isDisabled: boolean }) => (
-            <Text
-              style={{
-                color: isDisabled ? '#444' : '#f59e0b',
-                fontSize: 16,
-                fontWeight: '600',
-                paddingHorizontal: 12,
-              }}
+              <Text
+                style={[
+                  styles.accessoryButtonText,
+                  focusedInputIndex === 0 && styles.accessoryButtonDisabled,
+                ]}
+              >
+                Previous
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={focusNextInput}
+              disabled={focusedInputIndex === inputRefs.length - 1}
+              style={styles.accessoryButton}
             >
-              Next
-            </Text>
-          )}
-        />
-        <KeyboardToolbar.Done text="Done" />
-      </KeyboardToolbar>
-    </>
+              <Text
+                style={[
+                  styles.accessoryButtonText,
+                  focusedInputIndex === inputRefs.length - 1 && styles.accessoryButtonDisabled,
+                ]}
+              >
+                Next
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.accessorySpacer} />
+
+            <TouchableOpacity onPress={dismissKeyboard} style={styles.accessoryButton}>
+              <Text style={styles.accessoryButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  sectionLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginTop: 24, marginBottom: 6 },
-  fieldHint: { fontSize: 12, color: '#444', marginBottom: 8, lineHeight: 18 },
-  venueRow: { flexDirection: 'row', marginBottom: 4 },
-  venueChip: {
-    borderWidth: 1, borderColor: '#1e1e1e', borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, backgroundColor: '#111111',
+  screen: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
   },
-  venueChipActive: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
-  venueChipText: { color: '#666', fontSize: 14 },
-  venueChipTextActive: { color: '#0a0a0a', fontWeight: '700' },
-  noVenue: { color: '#555', fontSize: 13, paddingVertical: 8 },
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  debugBanner: {
+    marginTop: 12,
+    marginBottom: 4,
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  debugBannerText: {
+    color: '#0a0a0a',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    color: '#555',
+    letterSpacing: 2,
+    marginTop: 24,
+    marginBottom: 6,
+  },
+  fieldHint: {
+    fontSize: 12,
+    color: '#444',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  venueRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  venueChip: {
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    backgroundColor: '#111111',
+  },
+  venueChipActive: {
+    backgroundColor: '#f59e0b',
+    borderColor: '#f59e0b',
+  },
+  venueChipText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  venueChipTextActive: {
+    color: '#0a0a0a',
+    fontWeight: '700',
+  },
+  noVenue: {
+    color: '#555',
+    fontSize: 13,
+    paddingVertical: 8,
+  },
   input: {
-    backgroundColor: '#111111', color: '#fff', borderRadius: 10,
-    paddingHorizontal: 16, paddingVertical: 14, fontSize: 16,
-    borderWidth: 1, borderColor: '#1e1e1e',
+    backgroundColor: '#111111',
+    color: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
   },
   notesInput: {
     height: 90,
@@ -391,31 +555,121 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   toggleButton: {
-    flex: 1, paddingVertical: 12, borderRadius: 10,
-    backgroundColor: '#111111', borderWidth: 1, borderColor: '#1e1e1e',
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#f59e0b', borderColor: '#f59e0b',
+    backgroundColor: '#f59e0b',
+    borderColor: '#f59e0b',
   },
-  toggleText: { color: '#666', fontSize: 14, fontWeight: '600' },
-  toggleTextActive: { color: '#0a0a0a', fontWeight: '700' },
+  toggleText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: '#0a0a0a',
+    fontWeight: '700',
+  },
   breakdown: {
-    backgroundColor: '#111111', borderRadius: 12, padding: 16,
-    marginTop: 24, borderWidth: 1, borderColor: '#1e1e1e',
+    backgroundColor: '#111111',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
   },
-  breakdownTitle: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 12 },
-  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  breakdownTotal: { borderTopWidth: 1, borderTopColor: '#1e1e1e', paddingTop: 10, marginTop: 4 },
-  breakdownLabel: { color: '#aaa', fontSize: 13, flex: 1, paddingRight: 8 },
-  breakdownGreen: { color: '#22c55e', fontSize: 13, fontWeight: '600' },
-  breakdownRed: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
-  takeHomeBox: { alignItems: 'center', paddingVertical: 32, marginTop: 16 },
-  takeHomeLabel: { fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 10 },
-  takeHomeAmount: { fontSize: 52, fontWeight: '700', color: '#f59e0b' },
+  breakdownTitle: {
+    fontSize: 11,
+    color: '#555',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  breakdownTotal: {
+    borderTopWidth: 1,
+    borderTopColor: '#1e1e1e',
+    paddingTop: 10,
+    marginTop: 4,
+  },
+  breakdownLabel: {
+    color: '#aaa',
+    fontSize: 13,
+    flex: 1,
+    paddingRight: 8,
+  },
+  breakdownGreen: {
+    color: '#22c55e',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  breakdownRed: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  takeHomeBox: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    marginTop: 16,
+  },
+  takeHomeLabel: {
+    fontSize: 11,
+    color: '#555',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  takeHomeAmount: {
+    fontSize: 52,
+    fontWeight: '700',
+    color: '#f59e0b',
+  },
   saveButton: {
-    backgroundColor: '#f59e0b', borderRadius: 12, paddingVertical: 16,
-    alignItems: 'center', marginBottom: 48,
+    backgroundColor: '#f59e0b',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 48,
   },
-  saveButtonText: { color: '#0a0a0a', fontSize: 16, fontWeight: '700' },
+  saveButtonText: {
+    color: '#0a0a0a',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  inputAccessory: {
+    height: 44,
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#333',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#333',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  accessoryButton: {
+    paddingHorizontal: 12,
+    height: 44,
+    justifyContent: 'center',
+  },
+  accessoryButtonText: {
+    color: '#f59e0b',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  accessoryButtonDisabled: {
+    color: '#444',
+  },
+  accessorySpacer: {
+    flex: 1,
+  },
 });
