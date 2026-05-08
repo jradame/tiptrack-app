@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  InputAccessoryView,
   Platform,
   Keyboard,
+  Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
@@ -31,8 +31,6 @@ type Venue = {
 };
 
 type ShiftType = 'day' | 'night';
-
-const ACCESSORY_ID = 'logShiftInputAccessoryV4';
 
 function todayStr() {
   return new Date().toISOString().split('T')[0];
@@ -57,6 +55,8 @@ export default function LogShiftScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [focusedInputIndex, setFocusedInputIndex] = useState(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const showSales = selectedVenue?.track_sales === true;
 
@@ -65,6 +65,33 @@ export default function LogShiftScreen() {
       ? [dateRef, hoursRef, cashTipsRef, creditTipsRef, salesRef, notesRef]
       : [dateRef, hoursRef, cashTipsRef, creditTipsRef, notesRef];
   }, [showSales]);
+
+  useEffect(() => {
+    const handleKeyboardShow = (event: any) => {
+      const screenHeight = Dimensions.get('window').height;
+      const keyboardTopY = event.endCoordinates?.screenY ?? screenHeight;
+      const height = Math.max(screenHeight - keyboardTopY, 0);
+
+      setKeyboardHeight(height);
+      setKeyboardVisible(true);
+    };
+
+    const handleKeyboardHide = () => {
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+    };
+
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, handleKeyboardShow);
+    const hideSub = Keyboard.addListener(hideEvent, handleKeyboardHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,9 +134,8 @@ export default function LogShiftScreen() {
     Keyboard.dismiss();
   }
 
-  function accessoryProps(index: number) {
+  function focusProps(index: number) {
     return {
-      inputAccessoryViewID: Platform.OS === 'ios' ? ACCESSORY_ID : undefined,
       onFocus: () => setFocusedInputIndex(index),
       autoCorrect: false,
       spellCheck: false,
@@ -228,17 +254,16 @@ export default function LogShiftScreen() {
     <View style={styles.screen}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          keyboardVisible && styles.scrollContentKeyboardOpen,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustKeyboardInsets={false}
         automaticallyAdjustContentInsets={false}
       >
-        <View style={styles.debugBanner}>
-          <Text style={styles.debugBannerText}>KEYBOARD FIX V4 ACTIVE</Text>
-        </View>
-
         <Text style={styles.sectionLabel}>VENUE</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.venueRow}>
@@ -268,7 +293,7 @@ export default function LogShiftScreen() {
           placeholder="YYYY-MM-DD"
           placeholderTextColor="#555"
           keyboardAppearance="dark"
-          {...accessoryProps(0)}
+          {...focusProps(0)}
         />
 
         <Text style={styles.sectionLabel}>SHIFT TYPE</Text>
@@ -302,7 +327,7 @@ export default function LogShiftScreen() {
           placeholder="e.g. 6.5"
           placeholderTextColor="#555"
           keyboardAppearance="dark"
-          {...accessoryProps(1)}
+          {...focusProps(1)}
         />
 
         <Text style={styles.sectionLabel}>CASH TIPS</Text>
@@ -316,7 +341,7 @@ export default function LogShiftScreen() {
           placeholder="$0.00"
           placeholderTextColor="#555"
           keyboardAppearance="dark"
-          {...accessoryProps(2)}
+          {...focusProps(2)}
         />
 
         <Text style={styles.sectionLabel}>CREDIT TIPS</Text>
@@ -332,7 +357,7 @@ export default function LogShiftScreen() {
           placeholder="$0.00 (optional)"
           placeholderTextColor="#555"
           keyboardAppearance="dark"
-          {...accessoryProps(3)}
+          {...focusProps(3)}
         />
 
         {showSales && (
@@ -348,7 +373,7 @@ export default function LogShiftScreen() {
               placeholder="$0.00 (optional)"
               placeholderTextColor="#555"
               keyboardAppearance="dark"
-              {...accessoryProps(4)}
+              {...focusProps(4)}
             />
           </>
         )}
@@ -365,7 +390,7 @@ export default function LogShiftScreen() {
           numberOfLines={3}
           textAlignVertical="top"
           keyboardAppearance="dark"
-          {...accessoryProps(showSales ? 5 : 4)}
+          {...focusProps(showSales ? 5 : 4)}
         />
 
         {(tipOuts.length > 0 || hasCcFee || hasWage) && (
@@ -420,18 +445,26 @@ export default function LogShiftScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID={ACCESSORY_ID} backgroundColor="#1a1a1a">
-          <View style={styles.inputAccessory}>
+      {keyboardVisible && (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.keyboardToolbarWrapper,
+            {
+              bottom: keyboardHeight,
+            },
+          ]}
+        >
+          <View style={styles.keyboardToolbar}>
             <TouchableOpacity
               onPress={focusPreviousInput}
               disabled={focusedInputIndex === 0}
-              style={styles.accessoryButton}
+              style={styles.toolbarButton}
             >
               <Text
                 style={[
-                  styles.accessoryButtonText,
-                  focusedInputIndex === 0 && styles.accessoryButtonDisabled,
+                  styles.toolbarButtonText,
+                  focusedInputIndex === 0 && styles.toolbarButtonDisabled,
                 ]}
               >
                 Previous
@@ -441,25 +474,25 @@ export default function LogShiftScreen() {
             <TouchableOpacity
               onPress={focusNextInput}
               disabled={focusedInputIndex === inputRefs.length - 1}
-              style={styles.accessoryButton}
+              style={styles.toolbarButton}
             >
               <Text
                 style={[
-                  styles.accessoryButtonText,
-                  focusedInputIndex === inputRefs.length - 1 && styles.accessoryButtonDisabled,
+                  styles.toolbarButtonText,
+                  focusedInputIndex === inputRefs.length - 1 && styles.toolbarButtonDisabled,
                 ]}
               >
                 Next
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.accessorySpacer} />
+            <View style={styles.toolbarSpacer} />
 
-            <TouchableOpacity onPress={dismissKeyboard} style={styles.accessoryButton}>
-              <Text style={styles.accessoryButtonText}>Done</Text>
+            <TouchableOpacity onPress={dismissKeyboard} style={styles.toolbarButton}>
+              <Text style={styles.toolbarButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </InputAccessoryView>
+        </View>
       )}
     </View>
   );
@@ -478,19 +511,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  debugBanner: {
-    marginTop: 12,
-    marginBottom: 4,
-    backgroundColor: '#f59e0b',
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  debugBannerText: {
-    color: '#0a0a0a',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1,
+  scrollContentKeyboardOpen: {
+    paddingBottom: 120,
   },
   sectionLabel: {
     fontSize: 11,
@@ -645,7 +667,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  inputAccessory: {
+  keyboardToolbarWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  keyboardToolbar: {
     height: 44,
     backgroundColor: '#1a1a1a',
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -654,22 +683,22 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 20,
   },
-  accessoryButton: {
-    paddingHorizontal: 12,
+  toolbarButton: {
     height: 44,
     justifyContent: 'center',
+    paddingRight: 28,
   },
-  accessoryButtonText: {
+  toolbarButtonText: {
     color: '#f59e0b',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  accessoryButtonDisabled: {
+  toolbarButtonDisabled: {
     color: '#444',
   },
-  accessorySpacer: {
+  toolbarSpacer: {
     flex: 1,
   },
 });
