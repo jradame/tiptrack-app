@@ -2,7 +2,7 @@
   "expo": {
     "name": "TipTrack",
     "slug": "tiptrack-app",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -26,7 +26,8 @@
         "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.justinadame.tiptrack"
     },
     "web": {
       "favicon": "./assets/icon.png"
