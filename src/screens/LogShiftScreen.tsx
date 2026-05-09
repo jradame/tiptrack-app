@@ -11,6 +11,7 @@ import {
   Platform,
   Keyboard,
   Dimensions,
+  LayoutChangeEvent,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
@@ -37,12 +38,16 @@ function todayStr() {
 }
 
 export default function LogShiftScreen() {
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const dateRef = useRef<TextInput>(null);
   const hoursRef = useRef<TextInput>(null);
   const cashTipsRef = useRef<TextInput>(null);
   const creditTipsRef = useRef<TextInput>(null);
   const salesRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
+
+  const inputYPositions = useRef<Record<number, number>>({});
 
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
@@ -111,22 +116,43 @@ export default function LogShiftScreen() {
     }
   }
 
-  function focusPreviousInput() {
-    const previousIndex = Math.max(focusedInputIndex - 1, 0);
-    setFocusedInputIndex(previousIndex);
+  function saveInputY(index: number, event: LayoutChangeEvent) {
+    inputYPositions.current[index] = event.nativeEvent.layout.y;
+  }
 
-    requestAnimationFrame(() => {
-      inputRefs[previousIndex]?.current?.focus();
+  function scrollToInput(index: number) {
+    const y = inputYPositions.current[index];
+
+    if (typeof y !== 'number') return;
+
+    const offset = Math.max(y - 24, 0);
+
+    scrollViewRef.current?.scrollTo({
+      y: offset,
+      animated: true,
     });
   }
 
-  function focusNextInput() {
-    const nextIndex = Math.min(focusedInputIndex + 1, inputRefs.length - 1);
-    setFocusedInputIndex(nextIndex);
+  function focusInputAtIndex(index: number) {
+    const safeIndex = Math.max(0, Math.min(index, inputRefs.length - 1));
+
+    setFocusedInputIndex(safeIndex);
 
     requestAnimationFrame(() => {
-      inputRefs[nextIndex]?.current?.focus();
+      inputRefs[safeIndex]?.current?.focus();
+
+      setTimeout(() => {
+        scrollToInput(safeIndex);
+      }, 80);
     });
+  }
+
+  function focusPreviousInput() {
+    focusInputAtIndex(focusedInputIndex - 1);
+  }
+
+  function focusNextInput() {
+    focusInputAtIndex(focusedInputIndex + 1);
   }
 
   function dismissKeyboard() {
@@ -136,7 +162,13 @@ export default function LogShiftScreen() {
 
   function focusProps(index: number) {
     return {
-      onFocus: () => setFocusedInputIndex(index),
+      onFocus: () => {
+        setFocusedInputIndex(index);
+
+        setTimeout(() => {
+          scrollToInput(index);
+        }, 120);
+      },
       autoCorrect: false,
       spellCheck: false,
       autoComplete: 'off' as const,
@@ -253,6 +285,7 @@ export default function LogShiftScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
+        ref={scrollViewRef}
         style={styles.container}
         contentContainerStyle={[
           styles.scrollContent,
@@ -284,17 +317,19 @@ export default function LogShiftScreen() {
           )}
         </ScrollView>
 
-        <Text style={styles.sectionLabel}>DATE</Text>
-        <TextInput
-          ref={dateRef}
-          style={styles.input}
-          value={shiftDate}
-          onChangeText={setShiftDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#555"
-          keyboardAppearance="dark"
-          {...focusProps(0)}
-        />
+        <View onLayout={(event) => saveInputY(0, event)}>
+          <Text style={styles.sectionLabel}>DATE</Text>
+          <TextInput
+            ref={dateRef}
+            style={styles.input}
+            value={shiftDate}
+            onChangeText={setShiftDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor="#555"
+            keyboardAppearance="dark"
+            {...focusProps(0)}
+          />
+        </View>
 
         <Text style={styles.sectionLabel}>SHIFT TYPE</Text>
         <View style={styles.toggleRow}>
@@ -317,51 +352,57 @@ export default function LogShiftScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionLabel}>HOURS WORKED</Text>
-        <TextInput
-          ref={hoursRef}
-          style={styles.input}
-          value={hours}
-          onChangeText={setHours}
-          keyboardType="decimal-pad"
-          placeholder="e.g. 6.5"
-          placeholderTextColor="#555"
-          keyboardAppearance="dark"
-          {...focusProps(1)}
-        />
+        <View onLayout={(event) => saveInputY(1, event)}>
+          <Text style={styles.sectionLabel}>HOURS WORKED</Text>
+          <TextInput
+            ref={hoursRef}
+            style={styles.input}
+            value={hours}
+            onChangeText={setHours}
+            keyboardType="decimal-pad"
+            placeholder="e.g. 6.5"
+            placeholderTextColor="#555"
+            keyboardAppearance="dark"
+            {...focusProps(1)}
+          />
+        </View>
 
-        <Text style={styles.sectionLabel}>CASH TIPS</Text>
-        <Text style={styles.fieldHint}>What you walked out with tonight.</Text>
-        <TextInput
-          ref={cashTipsRef}
-          style={styles.input}
-          value={cashTips}
-          onChangeText={setCashTips}
-          keyboardType="decimal-pad"
-          placeholder="$0.00"
-          placeholderTextColor="#555"
-          keyboardAppearance="dark"
-          {...focusProps(2)}
-        />
+        <View onLayout={(event) => saveInputY(2, event)}>
+          <Text style={styles.sectionLabel}>CASH TIPS</Text>
+          <Text style={styles.fieldHint}>What you walked out with tonight.</Text>
+          <TextInput
+            ref={cashTipsRef}
+            style={styles.input}
+            value={cashTips}
+            onChangeText={setCashTips}
+            keyboardType="decimal-pad"
+            placeholder="$0.00"
+            placeholderTextColor="#555"
+            keyboardAppearance="dark"
+            {...focusProps(2)}
+          />
+        </View>
 
-        <Text style={styles.sectionLabel}>CREDIT TIPS</Text>
-        <Text style={styles.fieldHint}>
-          Only if your bar pays credit tips the same night. Most don't, leave blank.
-        </Text>
-        <TextInput
-          ref={creditTipsRef}
-          style={styles.input}
-          value={creditTips}
-          onChangeText={setCreditTips}
-          keyboardType="decimal-pad"
-          placeholder="$0.00 (optional)"
-          placeholderTextColor="#555"
-          keyboardAppearance="dark"
-          {...focusProps(3)}
-        />
+        <View onLayout={(event) => saveInputY(3, event)}>
+          <Text style={styles.sectionLabel}>CREDIT TIPS</Text>
+          <Text style={styles.fieldHint}>
+            Only if your bar pays credit tips the same night. Most don't, leave blank.
+          </Text>
+          <TextInput
+            ref={creditTipsRef}
+            style={styles.input}
+            value={creditTips}
+            onChangeText={setCreditTips}
+            keyboardType="decimal-pad"
+            placeholder="$0.00 (optional)"
+            placeholderTextColor="#555"
+            keyboardAppearance="dark"
+            {...focusProps(3)}
+          />
+        </View>
 
         {showSales && (
-          <>
+          <View onLayout={(event) => saveInputY(4, event)}>
             <Text style={styles.sectionLabel}>SALES</Text>
             <Text style={styles.fieldHint}>Total sales for the shift optional.</Text>
             <TextInput
@@ -375,23 +416,25 @@ export default function LogShiftScreen() {
               keyboardAppearance="dark"
               {...focusProps(4)}
             />
-          </>
+          </View>
         )}
 
-        <Text style={styles.sectionLabel}>NOTES</Text>
-        <TextInput
-          ref={notesRef}
-          style={[styles.input, styles.notesInput]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Anything worth remembering about this shift... (optional)"
-          placeholderTextColor="#555"
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-          keyboardAppearance="dark"
-          {...focusProps(showSales ? 5 : 4)}
-        />
+        <View onLayout={(event) => saveInputY(showSales ? 5 : 4, event)}>
+          <Text style={styles.sectionLabel}>NOTES</Text>
+          <TextInput
+            ref={notesRef}
+            style={[styles.input, styles.notesInput]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Anything worth remembering about this shift... (optional)"
+            placeholderTextColor="#555"
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            keyboardAppearance="dark"
+            {...focusProps(showSales ? 5 : 4)}
+          />
+        </View>
 
         {(tipOuts.length > 0 || hasCcFee || hasWage) && (
           <View style={styles.breakdown}>
@@ -512,7 +555,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   scrollContentKeyboardOpen: {
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   sectionLabel: {
     fontSize: 11,
